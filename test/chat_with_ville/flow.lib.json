@@ -1,0 +1,3 @@
+{
+  "Action_Target_Dialogue_Npc": "{intro}\n\nEvents of NPCS near you:\n{game_player_perceived_event}\n\n{game_player_perceived_space}\n\ncurrent time is {now_time}, we are chatting.\n\nI say to you: {input_text}. what you might say?\n\n1. no need to output your analysis process\n2. Output language: {lang}"
+}

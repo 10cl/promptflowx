@@ -1,0 +1,82 @@
+desc: "Agent: write a website"
+
+outputs:
+  reference: ${TestModification}
+
+nodes:
+  - name: DemandUnderstand
+    speak: "optimize your needs.."
+    source:
+      path: Planning_Prompt_Enhance
+      func: func_prompt_enhance.js
+    inputs:
+      task: ${inputs.input_text}
+
+  - name: Coding
+    speak: "coding your website.."
+    source:
+      path: Planning_Coding
+      func: Func_Coding
+    inputs:
+      gui: ${DemandUnderstand.gui}
+      ideas: ${DemandUnderstand.ideas}
+      language: ${DemandUnderstand.language}
+      modality: ${DemandUnderstand.modality}
+      task: ${DemandUnderstand.task}
+
+  - name: CodeComplete
+    speak: "complete your code.."
+    source:
+      path: Planning_CodeComplete
+      func: Func_Coding
+    inputs:
+      unimplemented_file: ${Coding.unimplemented_file}
+      codes: ${Coding.output}
+      language: ${DemandUnderstand.language}
+      modality: ${DemandUnderstand.modality}
+      task: ${DemandUnderstand.task}
+
+  - name: CodeReviewComment
+    speak: "code review your code.."
+    source:
+      path: Planning_CodeReviewComment
+    inputs:
+      codes: ${CodeComplete.output}
+      ideas: ${DemandUnderstand.ideas}
+      language: ${DemandUnderstand.language}
+      modality: ${DemandUnderstand.modality}
+      task: ${DemandUnderstand.task}
+
+  - name: CodeReviewModification
+    speak: "code review & rewrite your code.."
+    source:
+      path: Planning_CodeReviewModification
+      func: func_prompt_enhance.js
+    inputs:
+      comments: ${CodeReviewComment.output}
+      codes: ${CodeComplete.output}
+      ideas: ${DemandUnderstand.ideas}
+      language: ${DemandUnderstand.language}
+      modality: ${DemandUnderstand.modality}
+      task: ${DemandUnderstand.task}
+
+  - name: TestErrorSummary
+    speak: "testing.."
+    source:
+      path: Planning_TestErrorSummary
+    inputs:
+      test_reports: "js & css should inline in index.html"
+      codes: ${CodeReviewModification.output}
+      language: ${DemandUnderstand.language}
+
+  - name: TestModification
+    speak: "rewrite success.."
+    source:
+      path: Planning_TestModification
+      func: Func_Coding
+    inputs:
+      error_summary: ${TestErrorSummary.output}
+      test_reports: ${TestErrorSummary.output}
+      codes: ${CodeReviewModification.output}
+      language: ${DemandUnderstand.language}
+

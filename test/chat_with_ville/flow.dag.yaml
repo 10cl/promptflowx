@@ -1,0 +1,12 @@
+desc: "Chatting with Ville"
+
+outputs:
+  reference: ${ChattingWith_Ville}
+
+nodes:
+  - name: ChattingWith_Ville
+    source:
+      path: Action_Target_Dialogue_Npc
+    inputs:
+      input_text: ${inputs.input_text}
+      intro: "I want you to play a text-based adventure game. I play a character in this text-based adventure game."
