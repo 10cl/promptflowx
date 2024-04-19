@@ -4,6 +4,8 @@
 
 ---
 
+Like [promptflow](https://github.com/microsoft/promptflow), but this is the Typescript version.
+
 ## Usage
 
 To use promptflowx, install the package via NPM:
