@@ -237,7 +237,8 @@ export class PromptFlowX {
             throw new Error("Prompt Undefined");
           }
         } else {
-          return inputs.input_text;
+          //return inputs.input_text;
+          return this.prompt;
         }
       }
     }
