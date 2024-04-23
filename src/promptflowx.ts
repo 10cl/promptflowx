@@ -80,13 +80,16 @@ export class PromptFlowX {
 
   getRoleByName(roleName: String) {
     const roles = this.dag.roles || [];
+    let roleDefine = undefined
     roles.forEach((role) => {
-      if (role.name === roleName){
-       return role
+      if (role.name == roleName){
+        roleDefine = role
       }
     })
-    throw new Error(`${roleName} Not Found`);
-    return undefined
+    if (roleDefine == undefined){
+      throw new Error(`${roleName} Not Found`);
+    }
+    return roleDefine
   }
 
 
