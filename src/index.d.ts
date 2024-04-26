@@ -21,28 +21,18 @@ export interface PromptFlowRequester {
   buildPath: (yaml: string, promptLib: PromptLib) => Promise<PromptFlowNode[]>;
 }
 
-// Interface representing the entire Directed Acyclic Graph (DAG) structure of the prompt flow
-export interface PromptFlowDag {
-  inputs?: PromptInputsNode;
-  outputs: PromptOutputsNode;
-  nodes: PromptFlowNode[];
-  roles?: Role[]; // Optional roles associated with the prompt flow
-  tips?: []; // Optional tips or additional information
-  desc?: string; // Description of the prompt flow
-}
 
 // Interface representing the outputs node in the prompt flow
 export interface PromptOutputsNode {
   name: "outputs";
   reference: string;
+  [key: string]: any; // Additional properties can be added dynamically
 }
 
 // Interface representing the inputs node in the prompt flow
 export interface PromptInputsNode {
   name: "inputs";
   input_text?: string;
-  default?: string;
-  auto?: boolean;
 }
 
 // Interface representing a node in the prompt flow
@@ -60,11 +50,18 @@ export interface PromptChildSourceNode {
   code?: string;
   path?: string;
   func?: string;
+  [key: string]: any; // Additional properties can be added dynamically
 }
 
 // Interface representing the inputs of a prompt flow node
 export interface PromptChildInputsNode {
   [key: string]: string;
+}
+
+// Interface representing an edge in the prompt flow graph
+export interface PromptFlowEdge {
+  source: string;
+  target: string;
 }
 
 // Interface representing a role in the prompt flow
@@ -78,6 +75,16 @@ export interface Role {
 export interface RoleChildSourceNode {
   code?: string;
   path?: string;
+}
+
+// Interface representing the entire Directed Acyclic Graph (DAG) structure of the prompt flow
+export interface PromptFlowDag {
+  inputs?: PromptInputsNode;
+  outputs: PromptOutputsNode;
+  nodes: PromptFlowNode[];
+  roles?: Role[]; // Optional roles associated with the prompt flow
+  tips?: any[]; // Optional tips or additional information
+  desc?: string; // Description of the prompt flow
 }
 
 // Interface representing the prompt library, mapping function paths to their corresponding code
