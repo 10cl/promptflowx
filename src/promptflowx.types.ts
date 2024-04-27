@@ -39,8 +39,6 @@ export interface PromptOutputsNode {
 export interface PromptInputsNode {
   name: "inputs";
   input_text?: string;
-  default?: string;
-  auto?: boolean;
 }
 
 // Interface representing a node in the prompt flow
@@ -58,6 +56,7 @@ export interface PromptChildSourceNode {
   code?: string;
   path?: string;
   func?: string;
+  [key: string]: any; // Additional properties can be added dynamically
 }
 
 // Interface representing the inputs of a prompt flow node

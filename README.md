@@ -14,9 +14,9 @@ To use promptflowx, install the package via NPM:
 npm i promptflowx
 ```
 
-## **PromptFlow YAML Writing Guide**
+## **YAML Writing Guide**
 
-Welcome to PromptFlow! This guide is designed to assist you in crafting PromptFlow YAML documents accurately to define your PromptFlow processes. Please adhere to the guidelines below:
+Welcome to PromptFlowX! This guide is designed to assist you in crafting PromptFlow YAML documents accurately to define your PromptFlow processes. Please adhere to the guidelines below:
 
 ### 1. Describe the Agent
 

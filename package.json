@@ -1,6 +1,6 @@
 {
   "name": "promptflowx",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "promptflowx is a simple and powerful tool for building prompt-driven workflows.",
   "repository": {
     "url": "10cl/promptflowx",
