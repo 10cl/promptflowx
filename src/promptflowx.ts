@@ -229,20 +229,8 @@ export class PromptFlowX {
 
   getNodeValue(nodeName: string, value: string) {
     if (nodeName === PROMPT_START_NODE_NAME) {
-      const inputs = this.dag.inputs as PromptInputsNode;
       if (value === "input_text") {
-        if (inputs === undefined) {
-          return this.prompt;
-        } else if (inputs.input_text === undefined) {
-          if (inputs.default !== undefined) {
-            return inputs.default;
-          } else {
-            throw new Error("Prompt Undefined");
-          }
-        } else {
-          //return inputs.input_text;
-          return this.prompt;
-        }
+        return this.prompt;
       }
     }
 
