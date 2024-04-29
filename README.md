@@ -1,91 +1,167 @@
 # promptflowx
 
 [![NPM version](https://img.shields.io/npm/v/promptflowx.svg?style=flat)](https://npmjs.com/package/promptflowx)
+[![NPM version](https://img.shields.io/npm/types/promptflowx?style=flat)](https://npmjs.com/package/promptflowx)
+[![NPM version](https://img.shields.io/npm/dm/promptflowx?style=flat)](https://npmjs.com/package/promptflowx)
+[![chrome-version][chrome-image]][chrome-url]
+
+[![Doc](https://img.shields.io/badge/Doc-online-green)](https://promptflowx.toscl.com)
+[![Issue](https://img.shields.io/github/issues/10cl/promptflowx)](https://github.com/10cl/promptflowx/issues/new/choose)
+[![Discussions](https://img.shields.io/github/discussions/10cl/promptflowx)](https://github.com/10cl/promptflowx/issues/new/choose)
+[![License: MIT](https://img.shields.io/github/license/10cl/promptflowx)](https://github.com/10cl/promptflowx/blob/main/LICENSE)
+[![discord][discord-image]][discord-url]
+[![chrome-user][chrome-user-image]][chrome-user-url]
+
+
+
+[discord-image]: https://img.shields.io/discord/977885982579884082?logo=discord
+[discord-url]: https://discord.gg/fdjWfgGPjb
+[chrome-url]: https://chromewebstore.google.com/detail/chatdev-ide-building-your/dopllopmmfnghbahgbdejnkebfcmomej
+[chrome-image]: https://img.shields.io/chrome-web-store/v/dopllopmmfnghbahgbdejnkebfcmomej
+[chrome-user-url]: https://chromewebstore.google.com/detail/chatdev-ide-building-your/dopllopmmfnghbahgbdejnkebfcmomej
+[chrome-user-image]: https://img.shields.io/chrome-web-store/users/dopllopmmfnghbahgbdejnkebfcmomej
 
 ---
+> This is the Typescript version of [promptflow](https://github.com/10cl/promptflowx).  join us to make prompt flow better by
+> participating [discussions](https://github.com/10cl/promptflowx/discussions),
+> opening [issues](https://github.com/10cl/promptflowx/issues/new/choose),
+> submitting [PRs](https://github.com/10cl/promptflowx/pulls).
 
-Like [promptflow](https://github.com/microsoft/promptflow), but this is the Typescript version.
 
-## Usage
+**Prompt flow** is a suite of development tools designed to streamline the end-to-end development cycle of LLM-based AI applications, from ideation, prototyping, testing, evaluation to production deployment and monitoring. It makes prompt engineering much easier and enables you to build LLM apps with production quality.
 
-To use promptflowx, install the package via NPM:
+The letter **X** denotes its support for the **Context**.  Each node will as the `Global scope` within the flow operates in JavaScript.  
+>JavaScript objects exhibit remarkable flexibility;  they can encompass various entities such as functions, arrays, dates, regular expressions, and more.  This inherent flexibility empowers JavaScript objects to aptly represent data structures and logic, enabling dynamic creation and modification of their structures as necessitated.
 
-```bash
-npm i promptflowx
+ 
+With prompt flow, you will be able to:
+
+- **Create and iteratively develop flow**
+  - Create executable flows that link LLMs, prompts, JavaScript code and other together.
+  - Debug and iterate your flows, especially the interaction with LLMs with ease.
+- **Evaluate flow quality and performance**
+  - Evaluate your flow's quality and performance with larger datasets.
+- **Streamlined development cycle for production**
+  - Deploy your flow to the serving platform you choose or integrate into your app's code base easily.
+
+## Feature comparison
+<table style="width: 100%;">
+  <tr>
+    <th align="center">Feature</th>
+    <th align="center">promptflowx</th>
+    <th align="center">promptflow</th>
+  </tr>
+  <tr>
+    <td align="center">Programming Approach</td>
+    <td align="center">TypeScript</td>
+    <td align="center">Python Code</td>
+  </tr>
+  <tr>
+    <td align="center">IDE</td>
+    <td align="center"><a href="http://github.com/10cl/chatdev">ChatDev</a></td>
+    <td align="center">VS Code</td>
+  </tr>
+  <tr>
+    <td align="center">WorkFlow</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">Supported Context</td>
+    <td align="center">✅</td>
+    <td align="center">❌</td>
+  </tr>
+  <tr>
+    <td align="center">One-click Deployment</td>
+    <td align="center">✅</td>
+    <td align="center">❌</td>
+  </tr>
+</table>
+
+
+------
+
+## Installation
+
+To get started quickly, you can use a pre-built development environment. **Click the button below** to edit your promptflowx in the Extension, and then continue the readme!
+
+<a href="https://chrome.google.com/webstore/detail/chatdev-visualize-your-ai/dopllopmmfnghbahgbdejnkebfcmomej?utm_source=github"><img src="https://github.com/10cl/promptflowx/blob/main/screenshots/chrome-logo.png" width="200" alt="Get ChatDev for Chromium"></a>
+<a href="https://microsoftedge.microsoft.com/addons/detail/ceoneifbmcdiihmgfjeodiholmbpmibm?utm_source=github"><img src="https://github.com/10cl/promptflowx/blob/main/screenshots/edge-logo.png" width="160" alt="Get ChatDev for Microsoft Edge"></a>
+>more detail: https://github.com/10cl/chatdev?tab=readme-ov-file#-installation
+
+If you want to get started in your local environment, first install the packages:
+
+Ensure you have a `node` environment.
+
+```sh
+npm install promptflowx
 ```
 
-## **YAML Writing Guide**
+## Quick Start ⚡
+**Create a chatbot with prompt flow**
 
-Welcome to PromptFlowX! This guide is designed to assist you in crafting PromptFlow YAML documents accurately to define your PromptFlow processes. Please adhere to the guidelines below:
-
-### 1. Describe the Agent
-
-Begin the YAML file with a description of your Agent. This description will be displayed on the game map when hovering over the Agent.
-
+creates folder named `my_chatbot` and initiate a prompt flow(`flow.dag.yaml`) from a chat template like: 
 ```yaml
-desc: 'Description of the Agent'
-```
+desc: "ChatBot Template"
 
-### 2. Define Node Outputs
-
-Specify the final output node of the PromptFlow process. This node represents the endpoint of the entire process, typically reflecting the final output after user interaction with the Agent.
-
-```yaml
 outputs:
-  reference: ${FinalOutputNodeName}
-```
-
-### 3. Define Nodes
-
-Create an entry for each node, detailing the node's name, source (the path to the corresponding Prompt or function for that node), and input parameters if applicable.
-
-```yaml
-nodes:
-  - name: NodeName
-    source:
-      path: PathToNodesPromptOrFunction
-    inputs:
-      input_text: ${inputs.input_text} # Input parameter example
-      intro: 'xxx' # Input parameter example
-```
-
-* `name`: The name of the node, serving as its unique identifier.
-* `source.path`: The path to the Prompt or function corresponding to the node.
-* `inputs`: Optionally, define input parameters for the node. Specify input parameters for the node as needed, utilizing placeholders for parameter names and values, such as `${inputs.input_text}`.
-
-### 4. Considerations
-
-* Ensure node names are unique and do not conflict with other node names in the process.
-* Configure input and output parameters for nodes according to your specific requirements.
-
-### Example
-
-Below is a concise example of a PromptFlow YAML file:
-
-```yaml
-desc: 'Welcome to PromptFlow'
-outputs:
-  reference: ${FinalOutputNodeName}
+  reference: ${ChatBot_Template}
 
 nodes:
-  - name: Node1
+  - name: ChatBot_Template
     source:
-      path: PathToNode1sPromptOrFunction
+      code: "{intro}, we are chatting. I say to you: {prompt}. what you might say?"
     inputs:
-      input_text: ${inputs.input_text}
-      intro: 'This is the introduction for Node 1'
+      prompt: ${inputs.input_text}
+      intro: "I want you to play a text-based adventure game. I play a character in this text-based adventure game."
 
-  - name: FinalOutputNodeName
-    source:
-      path: PathToNode2sPromptOrFunction
-    inputs:
-      input_text: ${inputs.input_text}
-      option: 'Option 1'
-
-  # Definitions for other nodes...
 ```
 
-Please adapt the example above to suit your specific requirements and create your own PromptFlow YAML file.
+**Setup a connection for your LLM API**
+
+For LLM request, establish a connection by your define, each node will request the api, you can change the node Context or other things here:
+```ts
+export async function nodeRequest(node: PromptFlowNode, prompt: string): Promise<string> {
+  try {
+    console.log('node prompt request: ' + prompt);
+    const response = await axios.get('https://api.example.com/data');
+    return response.data.data;
+  } catch (error) {
+    // Handle errors that occur during fetching
+    console.error('Error fetching data from LLM API:', error);
+    throw error; // You can choose to throw the error or return a default value
+  }
+}
+```
+
+**Chat with your flow**
+
+In the `my_chatbot` folder, there's a `flow.dag.yaml` file that outlines the flow, including inputs/outputs, nodes,  connection, and the LLM model, etc
+Interact with your chatbot by execute the code:
+```ts
+export async function nodeCallback(node: PromptFlowNode) {
+  console.log('=> node handled:', node);
+}
+const yaml = fs.readFileSync(__dirname + '/my_chatbot/flow.dag.yaml', 'utf8');
+const promptLibs = await promptflowx.buildLib(yaml, __dirname + '/my_chatbot/');
+await promptflowx.execute(yaml, promptLibs, nodeRequest, nodeCallback, 'Hello.');
+```
+
+Next Step! Continue with the **Tutorial**  👇 section to delve deeper into prompt flow.
+
+## Tutorial 🏃‍♂️
+
+Prompt flow is a tool designed to **build high quality LLM apps**, the development process in prompt flow follows these steps: develop a flow, improve the flow quality, deploy the flow to production.
+
+### Develop your own LLM apps
+
+#### Browser Extension
+
+We also offer a Browser extension (a flow designer) for an interactive flow development experience with UI.
+
+![quick_start_chatdev.png](https://github.com/10cl/promptflowx/blob/main/screenshots/quick_start_chatdev.png)
+
+You can install it from the <a href="https://chrome.google.com/webstore/detail/chatdev-visualize-your-ai/dopllopmmfnghbahgbdejnkebfcmomej?utm_source=github">chrome store</a>.
 
 ## Contributing
 

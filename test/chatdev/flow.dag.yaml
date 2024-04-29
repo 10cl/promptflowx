@@ -1,11 +1,36 @@
-desc: "Agent: write a website"
+desc: "ChatDev Agent - one sentence demand to generate web page."
 
 outputs:
   reference: ${TestModification}
 
+roles:
+  - name: "Chief Product Officer"
+    source:
+      path: Role_Chief_Product_Officer
+  - name: "Counselor"
+    source:
+      path: Role_Counselor
+  - name: "Chief Technology Officer"
+    source:
+      path: Role_Chief_Technology_Officer
+  - name: "Chief Human Resource Officer"
+    source:
+      path: Role_Chief_Human_Resource_Officer
+  - name: "Programmer"
+    source:
+      path: Role_Programmer
+  - name: "Code Reviewer"
+    source:
+      path: Role_Code_Reviewer
+  - name: "Software Test Engineer"
+    source:
+      path: Role_Software_Test_Engineer
+  - name: "Chief Creative Officer"
+    source:
+      path: Role_Chief_Creative_Officer
+
 nodes:
   - name: DemandUnderstand
-    speak: "optimize your needs.."
     source:
       path: Planning_Prompt_Enhance
       func: Func_Prompt_Enhance
@@ -13,7 +38,7 @@ nodes:
       task: ${inputs.input_text}
 
   - name: Coding
-    speak: "coding your website.."
+    role: "Programmer"
     source:
       path: Planning_Coding
       func: Func_Coding
@@ -25,7 +50,7 @@ nodes:
       task: ${DemandUnderstand.task}
 
   - name: CodeComplete
-    speak: "complete your code.."
+    role: "Programmer"
     source:
       path: Planning_CodeComplete
       func: Func_Coding
@@ -37,7 +62,7 @@ nodes:
       task: ${DemandUnderstand.task}
 
   - name: CodeReviewComment
-    speak: "code review your code.."
+    role: "Code Reviewer"
     source:
       path: Planning_CodeReviewComment
     inputs:
@@ -48,7 +73,7 @@ nodes:
       task: ${DemandUnderstand.task}
 
   - name: CodeReviewModification
-    speak: "code review & rewrite your code.."
+    role: "Code Reviewer"
     source:
       path: Planning_CodeReviewModification
       func: Func_Coding
@@ -61,7 +86,7 @@ nodes:
       task: ${DemandUnderstand.task}
 
   - name: TestErrorSummary
-    speak: "testing.."
+    role: "Programmer"
     source:
       path: Planning_TestErrorSummary
     inputs:
@@ -70,7 +95,7 @@ nodes:
       language: ${DemandUnderstand.language}
 
   - name: TestModification
-    speak: "rewrite success.."
+    role: "Programmer"
     source:
       path: Planning_TestModification
       func: Func_Coding
