@@ -39,7 +39,8 @@ export const promptflowx: PromptFlowRequester = {
 
     const nodes = graph.generateNodes();
     const edges = graph.generateEdges(nodes);
-    await graph.executePath(await graph.traversePath(edges), asyncRequest, callback);
+    await graph.traversePath(edges)
+    await graph.executePath(asyncRequest, callback);
   },
 
   async buildPath(yaml: string, promptLib: PromptLib): Promise<PromptFlowNode[]> {

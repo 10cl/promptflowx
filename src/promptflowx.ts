@@ -93,7 +93,7 @@ export class PromptFlowX {
   }
 
 
-  async executePath(p: void, asyncRequest: PromptNodeRequest, callback: PromptNodeCallback) {
+  async executePath(asyncRequest: PromptNodeRequest, callback: PromptNodeCallback) {
     for (const dagNode of this.flowPath) {
       if (dagNode !== undefined) {
         dagNode.output = await asyncRequest(dagNode, this.generatePromptQuery(dagNode));
@@ -208,7 +208,6 @@ export class PromptFlowX {
   }
 
   async processPath(path: string[]) {
-    let preNode = "";
     for (const nodeName of path) {
       const dagNode = this.findNodeByName(nodeName);
       if (dagNode !== undefined) {
@@ -219,7 +218,6 @@ export class PromptFlowX {
         }
         this.flowPath.push(dagNode)
       }
-      preNode = nodeName;
     }
   }
 

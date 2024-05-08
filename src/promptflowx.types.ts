@@ -2,7 +2,7 @@
 export type PromptNodeCallback = (promptNode: PromptFlowNode) => void;
 
 // Type for asynchronous API requests
-export type PromptNodeRequest = (dagNode: PromptFlowNode, prompt: string) => Promise<string>;
+export type PromptNodeRequest = (dagNode: PromptFlowNode, prompt: string) => Promise<any>;
 
 // Type representing a prompt node, which can be either an inputs node, an outputs node, or a flow node
 export type PromptNode = PromptOutputsNode | PromptInputsNode | PromptFlowNode;
