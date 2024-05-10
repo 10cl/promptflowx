@@ -83,7 +83,7 @@ export interface PromptFlowDag {
   outputs: PromptOutputsNode;
   nodes: PromptFlowNode[];
   roles?: Role[]; // Optional roles associated with the prompt flow
-  tips?: any[]; // Optional tips or additional information
+  tips?: string[]; // Optional tips or additional information
   desc?: string; // Description of the prompt flow
 }
 
