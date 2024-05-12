@@ -47,7 +47,7 @@ export interface PromptFlowNode {
   role?: Role | string;
   source: PromptChildSourceNode;
   inputs?: PromptChildInputsNode;
-  output: string; // Default variable set for the chat return.
+  output: any; // Default variable set for the chat return.
   [key: string]: any; // Additional properties can be added dynamically
 }
 
