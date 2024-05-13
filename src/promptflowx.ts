@@ -213,6 +213,9 @@ export class PromptFlowX {
       if (dagNode !== undefined) {
         // empty llm output for check nodes.
         dagNode.output = ""
+        if (dagNode.source.func !== undefined) {
+          await this.evalExecute(dagNode, dagNode.source.func)
+        }
         this.flowPath.push(dagNode)
       }
     }
