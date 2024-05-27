@@ -248,14 +248,19 @@ export class PromptFlowX {
 
     requestPrompt += this.getPromptCode(dagNode);
     try {
-      Object.entries(dagNode.inputs ?? {}).forEach(([inputKey, inputValue]) => {
-        const valueRef = this.extractReference(inputValue);
-        if (valueRef !== undefined) {
-          const [prevNodeName, prevNodeValue] = valueRef.split(".") ?? [];
-          inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
-        }
-        requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
-      });
+      if (dagNode.inputs != undefined){
+        Object.entries(dagNode.inputs).forEach(([inputKey, inputValue]) => {
+          const valueRef = this.extractReference(inputValue);
+          if (valueRef !== undefined) {
+            const [prevNodeName, prevNodeValue] = valueRef.split(".") ?? [];
+            inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
+            if (dagNode.inputs && dagNode.inputs[inputKey]){
+              dagNode.inputs[inputKey] = inputValue
+            }
+          }
+          requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
+        });
+      }
     } catch (e) {
       throw new Error(`[${dagNode.name}] ${e}`);
     }
