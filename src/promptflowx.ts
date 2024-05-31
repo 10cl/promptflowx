@@ -298,6 +298,15 @@ export class PromptFlowX {
         promptFlowEdges.push(promptFlowEdge);
       }
     }
+    promptNodes.forEach((node)=>{
+      const promptFlowEdge = {
+        source: PROMPT_START_NODE_NAME,
+        target: node.name
+      } as PromptFlowEdge;
+      if (!promptFlowEdges.some((edge) => (edge.target === promptFlowEdge.target))) {
+        promptFlowEdges.push(promptFlowEdge);
+      }
+    })
 
     return promptFlowEdges;
   }
