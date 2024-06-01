@@ -64,7 +64,9 @@ export class PromptFlowX {
     const nodes = (dag.nodes || []) as PromptFlowNode[];
 
     const allNodes: PromptNode[] = [];
-    allNodes.push(dag.inputs || ({} as PromptInputsNode));
+    if (dag.inputs){
+      allNodes.push(dag.inputs);
+    }
     allNodes.push(dag.outputs || ({} as PromptOutputsNode));
 
     nodes.forEach((dagNode) => {
