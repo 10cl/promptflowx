@@ -17,21 +17,25 @@ export const promptflowx: PromptFlowRequester = {
   },
 
   async buildLib(yamlContent: string, libFolder: string): Promise<PromptLib> {
-    let funcJson = JSON.parse(fs.readFileSync(libFolder + "/" + "flow.lib.json", 'utf8'));
-    const dag = yamlParser.load(yamlContent) as PromptFlowDag;
+    const libPath = libFolder + "/" + "flow.lib.json"
+    if(fs.existsSync(libPath)){
+      let funcJson = JSON.parse(fs.readFileSync(libFolder + "/" + "flow.lib.json", 'utf8'));
+      const dag = yamlParser.load(yamlContent) as PromptFlowDag;
 
-    const nodes = (dag.nodes || []) as PromptFlowNode[];
-    nodes.forEach((node) => {
-      if (node.source) {
-        if (node.source.path && node.source.path.endsWith(".txt")) {
-          funcJson[node.source.path] = fs.readFileSync(libFolder + "/" + node.source.path, 'utf8');
+      const nodes = (dag.nodes || []) as PromptFlowNode[];
+      nodes.forEach((node) => {
+        if (node.source) {
+          if (node.source.path && node.source.path.endsWith(".txt")) {
+            funcJson[node.source.path] = fs.readFileSync(libFolder + "/" + node.source.path, 'utf8');
+          }
+          if (node.source.func && node.source.func.endsWith(".js")) {
+            funcJson[node.source.func] = fs.readFileSync(libFolder + "/" + node.source.func, 'utf8');
+          }
         }
-        if (node.source.func && node.source.func.endsWith(".js")) {
-          funcJson[node.source.func] = fs.readFileSync(libFolder + "/" + node.source.func, 'utf8');
-        }
-      }
-    });
-    return funcJson as PromptLib
+      });
+      return funcJson as PromptLib
+    }
+    return {}
   },
 
   async execute(yaml: string, promptLib: PromptLib, asyncRequest: PromptNodeRequest, callback: PromptNodeCallback, prompt?: string): Promise<void> {
