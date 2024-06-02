@@ -14,7 +14,7 @@ import {
   PROMPT_END_NODE_NAME,
   PROMPT_START_NODE_NAME,
   PromptNodeCallback,
-  PromptNodeCheck, Role
+  PromptNodeCheck, Role, SOURCE_REFERENCE_NODE_LIST, refCallBack
 } from './promptflowx.types';
 
 declare var window: any;
@@ -35,10 +35,13 @@ export class PromptFlowX {
     this.flowPath = []
   }
 
-  private extractReference(raw?: string): string | undefined {
-    const referenceRegex = /^\$\{(\S+)\}$/;
-    const match = raw?.match(referenceRegex);
-    return match ? match[1] : undefined;
+  private extractReference(raw: any): string | undefined {
+    if (typeof raw == "string"){
+      const referenceRegex = /^\$\{(\S+)\}$/;
+      const match = raw.match(referenceRegex);
+      return match ? match[1] : undefined;
+    }
+    return undefined
   }
 
   private addEdgeByInputValue(node: PromptFlowNode, inputValue: string, edges: PromptFlowEdge[]) {
@@ -164,17 +167,17 @@ export class PromptFlowX {
       }
 
       let isRefDone = true;
-      const taskNode = dagNode.inputs;
-      if (taskNode !== undefined) {
-        Object.keys(taskNode).forEach((inputKey) => {
-          const inputValue = taskNode[inputKey];
-          const valueRef = this.extractReference(inputValue);
-          const [prevNodeName] = valueRef?.split(".") ?? [];
+
+      this.traversalRefNodes(dagNode, (inputKey, taskNode)=>{
+        const inputValue = taskNode[inputKey];
+        const valueRef = this.extractReference(inputValue);
+        if (valueRef){
+          const [prevNodeName] = valueRef.split(".") ?? [];
           if (prevNodeName !== undefined && prevNodeName !== nodeName && !nodeCheck[prevNodeName]) {
             isRefDone = false;
           }
-        });
-      }
+        }
+      })
 
       if (isRefDone) {
         currentPath.shift();
@@ -250,19 +253,18 @@ export class PromptFlowX {
 
     requestPrompt += this.getPromptCode(dagNode);
     try {
-      if (dagNode.inputs != undefined){
-        Object.entries(dagNode.inputs).forEach(([inputKey, inputValue]) => {
-          const valueRef = this.extractReference(inputValue);
-          if (valueRef !== undefined) {
-            const [prevNodeName, prevNodeValue] = valueRef.split(".") ?? [];
-            inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
-            if (dagNode.inputs && dagNode.inputs[inputKey]){
-              dagNode.inputs[inputKey] = inputValue
-            }
+      this.traversalRefNodes(dagNode, (inputKey, taskNode)=> {
+        let inputValue = taskNode[inputKey];
+        const valueRef = this.extractReference(inputValue);
+        if (valueRef !== undefined) {
+          const [prevNodeName, prevNodeValue] = valueRef.split(".") ?? [];
+          inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
+          if (taskNode && taskNode[inputKey]) {
+            taskNode[inputKey] = inputValue
           }
-          requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
-        });
-      }
+        }
+        requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
+      })
     } catch (e) {
       throw new Error(`[${dagNode.name}] ${e}`);
     }
@@ -277,12 +279,14 @@ export class PromptFlowX {
     const promptFlowEdges: PromptFlowEdge[] = [];
 
     nodes.forEach((dagNode) => {
-      Object.keys(dagNode.inputs ?? {}).forEach((inputKey) => {
-        if (dagNode.inputs) {
-          const inputValue = dagNode.inputs[inputKey];
-          this.addEdgeByInputValue(dagNode, inputValue, promptFlowEdges);
+      this.traversalRefNodes(dagNode, (inputKey, taskNode)=>{
+        if (taskNode !== undefined) {
+          Object.keys(taskNode).forEach((inputKey) => {
+            let inputValue = taskNode[inputKey];
+            this.addEdgeByInputValue(dagNode, inputValue, promptFlowEdges);
+          })
         }
-      });
+      })
     });
 
     const outputRef = this.extractReference(dagOutputsNode.reference);
@@ -313,7 +317,24 @@ export class PromptFlowX {
     return promptFlowEdges;
   }
 
-  getFunctionCode(funcPath: string) {
+  traversalRefNodes(dagNode: PromptFlowNode, callback: refCallBack) {
+    SOURCE_REFERENCE_NODE_LIST.forEach((referenceNodeName) => {
+      const taskNode = dagNode.source[referenceNodeName];
+      if (taskNode !== undefined) {
+        Object.keys(taskNode).forEach((inputKey) => {
+          callback(inputKey, taskNode)
+        });
+      }
+    })
+    const taskNode = dagNode.inputs;
+    if (taskNode !== undefined) {
+      Object.keys(taskNode).forEach((inputKey) => {
+        callback(inputKey, taskNode)
+      });
+    }
+  }
+
+    getFunctionCode(funcPath: string) {
     let promptLibContent = this.funcLib[funcPath];
     if (promptLibContent !== undefined) {
       return promptLibContent;

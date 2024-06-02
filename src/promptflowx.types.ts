@@ -1,5 +1,7 @@
 // Callback function type for handling individual prompt flow nodes
 export type PromptNodeCallback = (promptNode: PromptFlowNode) => void;
+export type refCallBack = (inputKey: string, inputValue: any) => void
+
 
 // Type for asynchronous API requests
 export type PromptNodeRequest = (dagNode: PromptFlowNode, prompt: string) => Promise<any>;
@@ -10,6 +12,7 @@ export type PromptNode = PromptOutputsNode | PromptInputsNode | PromptFlowNode;
 // Constants defining the names of the start and end nodes in the prompt flow
 export const PROMPT_START_NODE_NAME = "inputs";
 export const PROMPT_END_NODE_NAME = "outputs";
+export const SOURCE_REFERENCE_NODE_LIST = ["embedding", "doc"];
 
 // Interface for the PromptFlowRequester, responsible for managing the execution and library building of prompt flows
 export interface PromptFlowRequester {
@@ -44,10 +47,27 @@ export interface PromptInputsNode {
 // Interface representing a node in the prompt flow
 export interface PromptFlowNode {
   name: string;
+  type?: string;
   role?: Role | string;
   source: PromptChildSourceNode;
+  doc: PromptChildDocNode;
+  embedding: PromptChildEmbeddingNode;
   inputs?: PromptChildInputsNode;
   output: any; // Default variable set for the chat return.
+  [key: string]: any; // Additional properties can be added dynamically
+}
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildDocNode {
+  url?: string;
+  path?: string;
+  [key: string]: any; // Additional properties can be added dynamically
+}
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildEmbeddingNode {
+  doc?: any;
+  query?: string;
   [key: string]: any; // Additional properties can be added dynamically
 }
 
@@ -56,6 +76,8 @@ export interface PromptChildSourceNode {
   code?: string;
   path?: string;
   func?: string;
+  doc?: PromptChildDocNode;
+  embedding?: PromptChildEmbeddingNode;
   [key: string]: any; // Additional properties can be added dynamically
 }
 
