@@ -231,17 +231,16 @@ export class PromptFlowX {
   }
 
   getNodeValue(nodeName: string, value: string) {
+    const dagNode = this.findNodeByName(nodeName);
+    if (dagNode !== undefined && dagNode[value] != undefined) {
+      return dagNode[value]
+    }
     if (nodeName === PROMPT_START_NODE_NAME) {
       if (value === "input_text") {
         return this.prompt;
       }
     }
-
-    const dagNode = this.findNodeByName(nodeName);
-    if (dagNode === undefined) {
-      throw new Error(`${nodeName} Node Not Found`);
-    }
-    return dagNode[value];
+    throw new Error(`${nodeName}.${value} Node Not Found`);
   }
 
   generatePromptQuery(dagNode: PromptFlowNode): string {
@@ -364,7 +363,7 @@ export class PromptFlowX {
     }
 
     if (!sourceNode.path) {
-      throw new Error(`${dagNode.name} source not found`);
+      return ""
     }
 
     let promptLibContent = this.funcLib[sourceNode.path];
