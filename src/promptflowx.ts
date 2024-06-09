@@ -261,6 +261,15 @@ export class PromptFlowX {
           if (taskNode && taskNode[inputKey]) {
             taskNode[inputKey] = inputValue
           }
+        }else{
+          if (inputKey == "query" || inputKey == "url"){
+            const inputsNode = dagNode.inputs;
+            if (inputsNode !== undefined) {
+              Object.keys(inputsNode).forEach((inputsNodeKey) => {
+                taskNode[inputKey] = taskNode[inputKey].replaceAll(`{${inputsNodeKey}}`, inputsNode[inputsNodeKey]);
+              });
+            }
+          }
         }
         requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
       })
@@ -317,6 +326,12 @@ export class PromptFlowX {
   }
 
   traversalRefNodes(dagNode: PromptFlowNode, callback: refCallBack) {
+    const taskNode = dagNode.inputs;
+    if (taskNode !== undefined) {
+      Object.keys(taskNode).forEach((inputKey) => {
+        callback(inputKey, taskNode)
+      });
+    }
     SOURCE_REFERENCE_NODE_LIST.forEach((referenceNodeName) => {
       const taskNode = dagNode.source[referenceNodeName];
       if (taskNode !== undefined) {
@@ -325,12 +340,6 @@ export class PromptFlowX {
         });
       }
     })
-    const taskNode = dagNode.inputs;
-    if (taskNode !== undefined) {
-      Object.keys(taskNode).forEach((inputKey) => {
-        callback(inputKey, taskNode)
-      });
-    }
   }
 
     getFunctionCode(funcPath: string) {
