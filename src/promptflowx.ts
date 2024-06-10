@@ -46,11 +46,14 @@ export class PromptFlowX {
 
   private addEdgeByInputValue(node: PromptFlowNode, inputValue: string, edges: PromptFlowEdge[]) {
     const valueRef = this.extractReference(inputValue);
-    const [prevNodeName] = valueRef?.split(".") ?? [];
+    if (valueRef == undefined){
+      return;
+    }
+    const [prevNodeName, prevNodeValue] = valueRef.split(".");
     if (prevNodeName === node.name) {
       return;
     }
-    if (prevNodeName) {
+    if (prevNodeName && !this.isContextVariable(prevNodeName, prevNodeValue)) {
       const currentEdge = {
         source: prevNodeName,
         target: node.name
@@ -113,18 +116,27 @@ export class PromptFlowX {
   }
 
   async evalExecute(dagNode: PromptFlowNode, func: string){
-    let globalObj;
-    if (PromptFlowX.context !== undefined) {
-      globalObj = PromptFlowX.context;
-    } else if (typeof window !== 'undefined') {
-      globalObj = window;
-    } else {
-      globalObj = {} as any;
-    }
-    globalObj.node = dagNode;
-    Interpreter.global = globalObj;
-    const evalFunc = getEvalInstance(globalObj);
+    PromptFlowX.context.node = dagNode;
+    Interpreter.global = PromptFlowX.context;
+    const evalFunc = getEvalInstance(PromptFlowX.context);
     evalFunc(this.getFunctionCode(func));
+  }
+
+  updateContextVariable(){
+    if (PromptFlowX.context === undefined) {
+      if (typeof window !== 'undefined') {
+        PromptFlowX.context = window;
+      } else {
+        PromptFlowX.context = {} as any;
+      }
+    }
+  }
+
+  isContextVariable(nodeName: string, nodeValue: string){
+    if (PromptFlowX.context && PromptFlowX.context[nodeName] && PromptFlowX.context[nodeName][nodeValue] != undefined){
+      return true
+    }
+    return false
   }
 
   async traversePath(edges: PromptFlowEdge[]) {
@@ -172,8 +184,8 @@ export class PromptFlowX {
         const inputValue = taskNode[inputKey];
         const valueRef = this.extractReference(inputValue);
         if (valueRef){
-          const [prevNodeName] = valueRef.split(".") ?? [];
-          if (prevNodeName !== undefined && prevNodeName !== nodeName && !nodeCheck[prevNodeName]) {
+          const [prevNodeName, prevNodeValue] = valueRef.split(".");
+          if (prevNodeName !== nodeName && (!nodeCheck[prevNodeName] && !this.isContextVariable(prevNodeName, prevNodeValue))) {
             isRefDone = false;
           }
         }
@@ -240,6 +252,9 @@ export class PromptFlowX {
         return this.prompt;
       }
     }
+    if (this.isContextVariable(nodeName, value)){
+      return PromptFlowX.context[nodeName][value]
+    }
     throw new Error(`${nodeName}.${value} Node Not Found`);
   }
 
@@ -256,7 +271,7 @@ export class PromptFlowX {
         let inputValue = taskNode[inputKey];
         const valueRef = this.extractReference(inputValue);
         if (valueRef !== undefined) {
-          const [prevNodeName, prevNodeValue] = valueRef.split(".") ?? [];
+          const [prevNodeName, prevNodeValue] = valueRef.split(".");
           inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
           if (taskNode && taskNode[inputKey]) {
             taskNode[inputKey] = inputValue
@@ -298,11 +313,11 @@ export class PromptFlowX {
     });
 
     const outputRef = this.extractReference(dagOutputsNode.reference);
-    if (!dagOutputsNode.reference){
+    if (!outputRef || !dagOutputsNode.reference){
       throw new Error(`outputs.reference not defined`);
     }
-    const [outputRefNodeName] = outputRef?.split(".") ?? [];
-    if (outputRefNodeName && promptNodes.some((node) => node.name === outputRefNodeName)) {
+    const [outputRefNodeName] = outputRef.split(".");
+    if (promptNodes.some((node) => node.name === outputRefNodeName)) {
       const promptFlowEdge = {
         source: outputRefNodeName,
         target: PROMPT_END_NODE_NAME

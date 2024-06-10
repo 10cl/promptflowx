@@ -40,7 +40,7 @@ export const promptflowx: PromptFlowRequester = {
 
   async execute(yaml: string, promptLib: PromptLib, asyncRequest: PromptNodeRequest, callback: PromptNodeCallback, prompt?: string): Promise<void> {
     const graph = new PromptFlowX(prompt, yaml, promptLib);
-
+    graph.updateContextVariable()
     const nodes = graph.generateNodes();
     const edges = graph.generateEdges(nodes);
     await graph.traversePath(edges)
@@ -49,7 +49,7 @@ export const promptflowx: PromptFlowRequester = {
 
   async buildPath(yaml: string, promptLib: PromptLib): Promise<PromptFlowNode[]> {
     const graph = new PromptFlowX("", yaml, promptLib);
-
+    graph.updateContextVariable()
     const nodes = graph.generateNodes();
     const edges = graph.generateEdges(nodes);
     await graph.traversePath(edges);
