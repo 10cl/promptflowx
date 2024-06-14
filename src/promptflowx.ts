@@ -140,11 +140,31 @@ export class PromptFlowX {
   }
 
   async traversePath(edges: PromptFlowEdge[]) {
-    const visited: Set<string> = new Set(); // Record visited nodes
-    const path: string[] = []; // Current path
     const paths: string[][] = []; // All paths
     this.flowPath = []
-    await this.findPath(edges, PROMPT_START_NODE_NAME, PROMPT_END_NODE_NAME, visited, path, paths);
+    const validPath = await this.findPath(edges, PROMPT_START_NODE_NAME, PROMPT_END_NODE_NAME, new Set(), [], paths);
+    if (validPath){
+      await this.processPath(validPath);
+    }else{
+      for (const edge of edges) {
+        if (edge.source == PROMPT_START_NODE_NAME){
+          const checkPath = [PROMPT_START_NODE_NAME, edge.target]
+          if (this.checkPath(checkPath)){
+            for (let i = 0; i < paths.length; i++) {
+              if (paths[i].indexOf(edge.target) == -1 && paths[i].indexOf(PROMPT_START_NODE_NAME) !== -1){
+                paths[i].shift()
+                const newValidPath = [...checkPath, ...paths[i]]
+                if (this.checkPath(newValidPath)){
+                  await this.processPath(newValidPath);
+                  return
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
   }
 
   checkPath(path: string[]) {
@@ -206,7 +226,7 @@ export class PromptFlowX {
 
     if (currentNodeId === endNodeId) {
       if (this.checkPath(path)) {
-        await this.processPath(path);
+        return path
       }
       paths.push([...path]);
     } else {
@@ -222,6 +242,7 @@ export class PromptFlowX {
 
     visited.delete(currentNodeId);
     path.pop();
+    return undefined
   }
 
   async processPath(path: string[]) {
@@ -328,12 +349,14 @@ export class PromptFlowX {
       }
     }
     promptNodes.forEach((node)=>{
-      const promptFlowEdge = {
-        source: PROMPT_START_NODE_NAME,
-        target: node.name
-      } as PromptFlowEdge;
-      if (!promptFlowEdges.some((edge) => (edge.target === promptFlowEdge.target))) {
-        promptFlowEdges.push(promptFlowEdge);
+      if (node.name != undefined){
+        const promptFlowEdge = {
+          source: PROMPT_START_NODE_NAME,
+          target: node.name
+        } as PromptFlowEdge;
+        if (!promptFlowEdges.some((edge) => (edge.target === promptFlowEdge.target))) {
+          promptFlowEdges.push(promptFlowEdge);
+        }
       }
     })
 
