@@ -1,14 +1,14 @@
-import * as yamlParser from 'js-yaml';
+import jsyaml from 'js-yaml';
 import fs from 'fs';
 import { getEvalInstance } from './promptflowx.eval';
 import { Interpreter } from 'promptflow-eval';
 // Callback function type for handling individual prompt flow nodes
-export type PromptNodeCallback = (promptNode: PromptFlowNode) => void;
-export type refCallBack = (inputKey: string, inputValue: any) => void
-
 
 // Type for asynchronous API requests
 export type PromptNodeRequest = (dagNode: PromptFlowNode, prompt: string) => Promise<any>;
+export type PromptNodeEmbeddingRequest = (text: string) => Promise<number[]>;
+export type PromptNodeCallback = (promptNode: PromptFlowNode) => void;
+export type refCallBack = (inputKey: string, taskNode: any, type: string) => void
 
 // Type representing a prompt node, which can be either an inputs node, an outputs node, or a flow node
 export type PromptNode = PromptOutputsNode | PromptInputsNode | PromptFlowNode;
@@ -20,19 +20,36 @@ export const SOURCE_REFERENCE_NODE_LIST = ["embedding", "doc"];
 
 // Interface for the PromptFlowRequester, responsible for managing the execution and library building of prompt flows
 export interface PromptFlowRequester {
-  // Method to set the context for the prompt flow execution
-  setContext: (context: any) => void;
   // Method to execute a prompt flow using the provided YAML, prompt library, and asynchronous request function
-  execute: (yaml: string, promptLib: PromptLib, asyncRequest: PromptNodeRequest, callback: PromptNodeCallback, prompt?: string) => Promise<void>;
+  execute: (context: Context, yaml: string, prompt?: string) => Promise<void>;
   // Method to build the prompt library based on the provided YAML and library folder
   buildLib: (yaml: string, libFolder: string) => Promise<PromptLib>;
   // Method to build the prompt fow path based on the provided YAML and library folder
-  buildPath: (yaml: string, promptLib: PromptLib) => Promise<PromptFlowNode[]>;
+  buildPath: (context: Context, yaml: string) => Promise<PromptFlowNode[]>;
 }
 
 // Interface representing a check on whether each node in the prompt flow has been visited
-export interface PromptNodeCheck {
-  [key: string]: boolean;
+export interface Context {
+  promptflowx: PromptFlowContext;
+
+  [key: string]: any;
+}
+
+// Interface representing a check on whether each node in the prompt flow has been visited
+export interface PromptFlowContext {
+  /*llm api request defined*/
+  request?: PromptNodeRequest;
+
+  /*embedding support.*/
+  embeddingRequest?: PromptNodeEmbeddingRequest;
+
+  /* prompt libs*/
+  libs?: PromptLib;
+
+  /* node handle callback */
+  callback?: PromptNodeCallback;
+
+  [key: string]: any;
 }
 
 // Interface representing the outputs node in the prompt flow
@@ -124,22 +141,20 @@ export interface PromptLib {
   [key: string]: string;
 }
 
-
-declare var window: any;
-
-export class PromptFlowX {
-  private readonly prompt: string | undefined;
+class PromptFlowX {
+  private readonly prompt?: string;
   private readonly yamlContent: string;
   private readonly funcLib: PromptLib;
   private readonly dag: PromptFlowDag;
-  static context: any;
+  private readonly context: Context;
   public flowPath: PromptFlowNode[];
 
-  constructor(prompt: string | undefined, yamlContent: string, funcLib: PromptLib) {
+  constructor(context: Context, yamlContent: string, prompt?: string) {
+    this.context = context;
     this.yamlContent = yamlContent;
-    this.dag = yamlParser.load(this.yamlContent) as PromptFlowDag;
+    this.dag = jsyaml.load(this.yamlContent) as PromptFlowDag;
     this.prompt = prompt;
-    this.funcLib = funcLib;
+    this.funcLib = context.promptflowx.libs ? context.promptflowx.libs : {};
     this.flowPath = []
   }
 
@@ -223,25 +238,15 @@ export class PromptFlowX {
     }
   }
 
-  async evalExecute(dagNode: PromptFlowNode, func: string){
-    PromptFlowX.context.node = dagNode;
-    Interpreter.global = PromptFlowX.context;
-    const evalFunc = getEvalInstance(PromptFlowX.context);
+  async evalExecute(dagNode: PromptFlowNode, func: string) {
+    this.context.node = dagNode;
+    Interpreter.global = this.context;
+    const evalFunc = getEvalInstance(this.context);
     evalFunc(this.getFunctionCode(func));
   }
 
-  updateContextVariable(){
-    if (PromptFlowX.context === undefined) {
-      if (typeof window !== 'undefined') {
-        PromptFlowX.context = window;
-      } else {
-        PromptFlowX.context = {} as any;
-      }
-    }
-  }
-
-  isContextVariable(nodeName: string, nodeValue: string){
-    if (PromptFlowX.context && PromptFlowX.context[nodeName] && PromptFlowX.context[nodeName][nodeValue] != undefined){
+  isContextVariable(nodeName: string, nodeValue: string) {
+    if (this.context && this.context[nodeName]) {
       return true
     }
     return false
@@ -249,22 +254,21 @@ export class PromptFlowX {
 
   async traversePath(edges: PromptFlowEdge[]) {
     const paths: string[][] = []; // All paths
-    this.flowPath = []
+    const flowPath = [] as PromptFlowNode[]
     const validPath = await this.findPath(edges, PROMPT_START_NODE_NAME, PROMPT_END_NODE_NAME, new Set(), [], paths);
-    if (validPath){
-      await this.processPath(validPath);
-    }else{
+    if (validPath) {
+      return await this.processPath(flowPath, validPath);
+    } else {
       for (const edge of edges) {
-        if (edge.source == PROMPT_START_NODE_NAME){
+        if (edge.source == PROMPT_START_NODE_NAME) {
           const checkPath = [PROMPT_START_NODE_NAME, edge.target]
-          if (this.checkPath(checkPath)){
+          if (this.checkPath(checkPath)) {
             for (let i = 0; i < paths.length; i++) {
-              if (paths[i].indexOf(edge.target) == -1 && paths[i].indexOf(PROMPT_START_NODE_NAME) !== -1){
+              if (paths[i].indexOf(edge.target) == -1 && paths[i].indexOf(PROMPT_START_NODE_NAME) !== -1) {
                 paths[i].shift()
                 const newValidPath = [...checkPath, ...paths[i]]
-                if (this.checkPath(newValidPath)){
-                  await this.processPath(newValidPath);
-                  return
+                if (this.checkPath(newValidPath)) {
+                  return await this.processPath(flowPath, newValidPath);
                 }
               }
             }
@@ -272,13 +276,13 @@ export class PromptFlowX {
         }
       }
     }
-
+    return [] as PromptFlowNode[]
   }
 
   checkPath(path: string[]) {
     const currentPath = [...path];
 
-    const nodeCheck: PromptNodeCheck = {} as PromptNodeCheck;
+    const nodeCheck = {} as { [key: string]: boolean };
     nodeCheck[PROMPT_START_NODE_NAME] = true;
     nodeCheck[PROMPT_END_NODE_NAME] = false;
     this.dag.nodes?.forEach((node) => {
@@ -384,8 +388,11 @@ export class PromptFlowX {
         return this.prompt;
       }
     }
-    if (this.isContextVariable(nodeName, value)){
-      return PromptFlowX.context[nodeName][value]
+    if (this.isContextVariable(nodeName, value)) {
+      if (this.context[nodeName][value] == undefined){
+        throw Error(dagNode?.name + " ${" + nodeName + "." +  value + "} is not defined.")
+      }
+      return this.context[nodeName][value]
     }
     throw new Error(`${nodeName}.${value} Node Not Found`);
   }
@@ -434,12 +441,10 @@ export class PromptFlowX {
     const promptFlowEdges: PromptFlowEdge[] = [];
 
     nodes.forEach((dagNode) => {
-      this.traversalRefNodes(dagNode, (inputKey, taskNode)=>{
+      this.traversalRefNodes(dagNode, (inputKey, taskNode) => {
         if (taskNode !== undefined) {
-          Object.keys(taskNode).forEach((inputKey) => {
-            let inputValue = taskNode[inputKey];
-            this.addEdgeByInputValue(dagNode, inputValue, promptFlowEdges);
-          })
+          let inputValue = taskNode[inputKey];
+          this.addEdgeByInputValue(dagNode, inputValue, promptFlowEdges)
         }
       })
     });
@@ -502,35 +507,84 @@ export class PromptFlowX {
     }
   }
 
-  getPromptCode(dagNode: PromptFlowNode) {
-    let sourceNode = dagNode.source;
-
+  getPromptCode(promptNode: PromptFlowNode) {
+    const sourceNode = promptNode.source
     // add role.
     let roleDefined = ""
-    const role = dagNode.role as Role;
-    if (role){
-      if (role.source.code){
+    const role = promptNode.role as Role;
+    if (role) {
+      if (role.source.code) {
         roleDefined = role.source.code
-      }else if (role.source.path){
+      } else if (role.source.path) {
         roleDefined = this.funcLib[role.source.path]
       }
     }
 
-    if (sourceNode.code) {
+    if ("code" in sourceNode && sourceNode.code) {
       return roleDefined + sourceNode.code;
     }
 
-    if (!sourceNode.path) {
-      return ""
+    if ("path" in sourceNode) {
+      let promptLibContent = this.funcLib[sourceNode.path];
+      if (promptLibContent !== undefined) {
+        return roleDefined + promptLibContent;
+      } else if (sourceNode.path.indexOf(".") !== -1) {
+        throw new Error(`${sourceNode.path} not build, you need buildLib first.`);
+      } else {
+        throw new Error(`${sourceNode.path} not found`);
+      }
     }
 
-    let promptLibContent = this.funcLib[sourceNode.path];
-    if (promptLibContent !== undefined) {
-      return roleDefined + promptLibContent;
-    } else if (sourceNode.path.endsWith(".js") || sourceNode.path.endsWith(".txt")) {
-      throw new Error(`${sourceNode.path} not build, you need buildLib first.`);
-    } else {
-      throw new Error(`${sourceNode.path} not found`);
-    }
+    return ""
   }
+
 }
+// Export the module's functionality
+export const promptflowx: PromptFlowRequester = {
+  async buildLib(yamlContent: string, libFolder: string): Promise<PromptLib> {
+    const libPath = libFolder + "/" + "flow.dag.json"
+    let promptLibs = {} as PromptLib
+    if (fs.existsSync(libPath)) {
+      promptLibs = JSON.parse(fs.readFileSync(libFolder + "/" + "flow.dag.json", 'utf8'));
+    }
+    const dag = jsyaml.load(yamlContent) as PromptFlowDag;
+    const nodes = (dag.nodes || []) as PromptFlowNode[];
+    nodes.forEach((node) => {
+      if (node.source) {
+        if ("path" in node.source) {
+          const promptPath = libFolder + "/" + node.source.path
+          if (fs.existsSync(promptPath)) {
+            promptLibs[node.source.path] = fs.readFileSync(promptPath, 'utf8');
+          }
+        }
+        if (node.source.func && node.source.func.endsWith(".js")) {
+          promptLibs[node.source.func] = fs.readFileSync(libFolder + "/" + node.source.func, 'utf8');
+        }
+
+        if ("scheme" in node.source) {
+          promptLibs[node.source.scheme.scheme] = fs.readFileSync(libFolder + "/" + node.source.scheme.scheme, 'utf8');
+        }
+      }
+    });
+    return promptLibs
+  },
+
+  async execute(context: Context, yaml: string, prompt?: string): Promise<void> {
+    const graph = new PromptFlowX(context, yaml, prompt);
+    const nodes = graph.generateNodes();
+    const edges = graph.generateEdges(nodes);
+    const flowPath = await graph.traversePath(edges)
+    if (!context.promptflowx.request) {
+      throw Error("Context promptflowx request function not defined.")
+    }
+    await graph.executePath(flowPath, context.promptflowx.request, context.promptflowx.callback);
+  },
+
+  async buildPath(context: Context, yaml: string): Promise<PromptFlowNode[]> {
+    const graph = new PromptFlowX(context, yaml);
+    const nodes = graph.generateNodes();
+    const edges = graph.generateEdges(nodes);
+    return await graph.traversePath(edges);
+  },
+
+};
