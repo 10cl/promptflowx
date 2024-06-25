@@ -564,6 +564,10 @@ export const promptflowx: PromptFlowRequester = {
         if ("scheme" in node.source) {
           promptLibs[node.source.scheme.scheme] = fs.readFileSync(libFolder + "/" + node.source.scheme.scheme, 'utf8');
         }
+
+        if ("doc" in node.source && "path" in node.source.doc) {
+          promptLibs[node.source.doc.path] = fs.readFileSync(libFolder + "/" + node.source.doc.path, 'utf8');
+        }
       }
     });
     return promptLibs
