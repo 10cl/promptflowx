@@ -1,8 +1,13 @@
 import jsyaml from 'js-yaml';
 import fs from 'fs';
-import { getEvalInstance } from './promptflowx.eval';
-import { Interpreter } from 'promptflow-eval';
+
 // Callback function type for handling individual prompt flow nodes
+import {Document} from "@langchain/core/documents";
+import {loadDocuments, loadTextBySplitter, retrieveEmbedding} from "./loader";
+import {Interpreter} from "promptflow-eval";
+import {getEvalInstance} from "./promptflowx.eval";
+import {createJsonPrintAgent} from "./scheme/scheme";
+import {type} from "os";
 
 // Type for asynchronous API requests
 export type PromptNodeRequest = (dagNode: PromptFlowNode, prompt: string) => Promise<any>;
@@ -56,6 +61,7 @@ export interface PromptFlowContext {
 export interface PromptOutputsNode {
   name: "outputs";
   reference: string;
+
   [key: string]: any; // Additional properties can be added dynamically
 }
 
@@ -65,41 +71,117 @@ export interface PromptInputsNode {
   input_text?: string;
 }
 
+export type PromptFlowNode = PromptFlowPromptNode | PromptFlowSchemeNode | PromptFlowDocNode | PromptFlowRetrieveNode;
+export type PromptChildDocNode = PromptChildDocPathNode | PromptChildDocUrlNode | PromptChildDocReferenceNode;
+
 // Interface representing a node in the prompt flow
-export interface PromptFlowNode {
+export interface PromptFlowPromptNode {
   name: string;
-  type?: string;
+  type?: "prompt";
   role?: Role | string;
-  source: PromptChildSourceNode;
-  doc: PromptChildDocNode;
-  embedding: PromptChildEmbeddingNode;
+  source: {
+    code: string;
+    func?: string;
+  } | {
+    path: string;
+    func?: string;
+  }
   inputs?: PromptChildInputsNode;
   output: any; // Default variable set for the chat return.
   [key: string]: any; // Additional properties can be added dynamically
 }
 
+// Interface representing a node in the prompt flow
+export interface PromptFlowSchemeNode {
+  name: string;
+  type: "scheme";
+  role?: Role | string;
+  source: {
+    scheme: PromptChildSchemePathNode | PromptChildSchemeCodeNode;
+    code: string;
+    func?: string;
+  } | {
+    scheme: PromptChildSchemePathNode | PromptChildSchemeCodeNode;
+    path: string;
+    func?: string;
+  }
+  inputs?: PromptChildInputsNode;
+  output: any; // Default variable set for the chat return.
+  [key: string]: any; // Additional properties can be added dynamically
+}
+
+// Interface representing a node in the prompt flow
+export interface PromptFlowDocNode {
+  name: string;
+  type: "doc";
+  source: {
+    doc: PromptChildDocNode;
+    func?: string
+  }
+  inputs?: PromptChildInputsNode;
+  output: Document[]; // Default variable set for the chat return.
+  [key: string]: any; // Additional properties can be added dynamically
+}
+
+// Interface representing a node in the prompt flow
+export interface PromptFlowRetrieveNode {
+  name: string;
+  type: "retrieve";
+  source: {
+    embedding: PromptChildEmbeddingNode;
+    func?: string
+  }
+  inputs?: PromptChildInputsNode;
+  output: Document[]; // Default variable set for the chat return.
+  [key: string]: any; // Additional properties can be added dynamically
+}
+
 // Interface representing the source of a prompt flow node
-export interface PromptChildDocNode {
-  url?: string;
-  path?: string;
+export interface PromptChildSplitterNode {
+  name: "CharacterTextSplitter" | "RecursiveCharacterTextSplitter" | "TokenTextSplitter"
+  separator?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  encodingName?: "gpt2" | "r50k_base" | "p50k_base" | "p50k_edit" | "cl100k_base" | "o200k_base";
+
   [key: string]: any; // Additional properties can be added dynamically
 }
 
 // Interface representing the source of a prompt flow node
 export interface PromptChildEmbeddingNode {
-  doc?: any;
-  query?: string;
-  [key: string]: any; // Additional properties can be added dynamically
+  doc: Document[];
+  query: string;
 }
 
 // Interface representing the source of a prompt flow node
-export interface PromptChildSourceNode {
-  code?: string;
-  path?: string;
-  func?: string;
-  doc?: PromptChildDocNode;
-  embedding?: PromptChildEmbeddingNode;
-  [key: string]: any; // Additional properties can be added dynamically
+export interface PromptChildDocPathNode {
+  path: string;
+  splitter?: PromptChildSplitterNode;
+}
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildDocUrlNode {
+  url: string;
+  splitter?: PromptChildSplitterNode;
+}
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildDocReferenceNode {
+  reference: string | Document[];
+  splitter?: PromptChildSplitterNode;
+}
+
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildSchemePathNode {
+  scheme: string;
+  scheme_type: string;
+}
+
+// Interface representing the source of a prompt flow node
+export interface PromptChildSchemeCodeNode {
+  scheme: string;
+  scheme_type: string;
 }
 
 // Interface representing the inputs of a prompt flow node
@@ -147,7 +229,7 @@ class PromptFlowX {
   private readonly funcLib: PromptLib;
   private readonly dag: PromptFlowDag;
   private readonly context: Context;
-  public flowPath: PromptFlowNode[];
+  public referenceCache: {[key: string]: string}
 
   constructor(context: Context, yamlContent: string, prompt?: string) {
     this.context = context;
@@ -155,11 +237,11 @@ class PromptFlowX {
     this.dag = jsyaml.load(this.yamlContent) as PromptFlowDag;
     this.prompt = prompt;
     this.funcLib = context.promptflowx.libs ? context.promptflowx.libs : {};
-    this.flowPath = []
+    this.referenceCache = {}
   }
 
   private extractReference(raw: any): string | undefined {
-    if (typeof raw == "string"){
+    if (typeof raw == "string") {
       const referenceRegex = /^\$\{(\S+)\}$/;
       const match = raw.match(referenceRegex);
       return match ? match[1] : undefined;
@@ -169,7 +251,7 @@ class PromptFlowX {
 
   private addEdgeByInputValue(node: PromptFlowNode, inputValue: string, edges: PromptFlowEdge[]) {
     const valueRef = this.extractReference(inputValue);
-    if (valueRef == undefined){
+    if (valueRef == undefined) {
       return;
     }
     const [prevNodeName, prevNodeValue] = valueRef.split(".");
@@ -193,13 +275,13 @@ class PromptFlowX {
     const nodes = (dag.nodes || []) as PromptFlowNode[];
 
     const allNodes: PromptNode[] = [];
-    if (dag.inputs){
+    if (dag.inputs) {
       allNodes.push(dag.inputs);
     }
     allNodes.push(dag.outputs || ({} as PromptOutputsNode));
 
     nodes.forEach((dagNode) => {
-      if (typeof dagNode.role == "string"){
+      if (typeof dagNode.role == "string") {
         const roleName = dagNode.role
         dagNode.role = this.getRoleByName(roleName)
       }
@@ -213,27 +295,91 @@ class PromptFlowX {
     const roles = this.dag.roles || [];
     let roleDefine = undefined
     roles.forEach((role) => {
-      if (role.name == roleName){
+      if (role.name == roleName) {
         roleDefine = role
       }
     })
-    if (roleDefine == undefined){
+    if (roleDefine == undefined) {
       throw new Error(`${roleName} Not Found`);
     }
     return roleDefine
   }
 
 
-  async executePath(asyncRequest: PromptNodeRequest, callback: PromptNodeCallback) {
-    for (const dagNode of this.flowPath) {
-      if (dagNode !== undefined) {
-        dagNode.output = await asyncRequest(dagNode, this.generatePromptQuery(dagNode));
-        if (dagNode.source.func !== undefined) {
-          await this.evalExecute(dagNode, dagNode.source.func)
-        }
-        if (callback) {
-          callback(dagNode);
-        }
+  async executePath(flowPath: PromptFlowNode[], asyncRequest: PromptNodeRequest, callback?: PromptNodeCallback) {
+    for (const dagNode of flowPath) {
+      let prompt = this.generatePromptQuery(dagNode, true)
+      switch (dagNode.type) {
+        case "scheme":
+          const schemeNode = dagNode as PromptFlowSchemeNode;
+          const schemeType = schemeNode.source.scheme.scheme_type
+          const schemePath = schemeNode.source.scheme.scheme
+          const schema = this.funcLib[schemePath]
+
+          prompt = prompt.replace("{scheme}", schema);
+          prompt = prompt.replace("{scheme_type}", schemeType);
+
+          const agent = createJsonPrintAgent(this.context, dagNode, schema, schemeType);
+
+          const response = await agent.handleMessage(prompt);
+          if (!response.success) {
+            throw new Error("Scheme Translation Failed ❌")
+          }
+          dagNode.output = response.data
+          break
+        case "doc":
+          await asyncRequest(dagNode, prompt);
+
+          const docNode = dagNode as PromptFlowDocNode
+          const docOutput = [] as Document[]
+          const docChildNode = docNode.source.doc
+          let noSplitterDocs = "" as Document[] | string;
+          let mark = ""
+          if ("url" in docChildNode) {
+            mark = docChildNode.url
+            noSplitterDocs = await loadDocuments(this.context, docChildNode.url, docChildNode)
+          } else if ("path" in docChildNode) {
+            mark = docChildNode.path
+            noSplitterDocs = this.funcLib[docChildNode.path]
+          }else if ("reference" in docChildNode){
+            if (typeof docChildNode.reference != "string"){
+              noSplitterDocs = docChildNode.reference;
+              if (noSplitterDocs.length > 0){
+                mark = noSplitterDocs[0].metadata.mark
+              }
+            }
+          }
+
+          const splitterDocs = await loadTextBySplitter(noSplitterDocs, docChildNode)
+
+          if (splitterDocs.length == 0){
+            throw Error("`" + docNode.name + "` no document here.")
+          }
+
+          for (let i = 0; i < splitterDocs.length; i++) {
+           splitterDocs[i].metadata.mark = mark;
+          }
+
+          docNode.output = splitterDocs
+          break
+        case "retrieve":
+          await asyncRequest(dagNode, prompt);
+
+          const promptFlowRetrieveNode = dagNode as PromptFlowRetrieveNode
+          const embeddingNode = promptFlowRetrieveNode.source.embedding
+          dagNode.output = await retrieveEmbedding(this.context, embeddingNode)
+          break
+        default:
+          dagNode.type = "prompt"
+          const promptNode = dagNode as PromptFlowPromptNode
+          promptNode.output = await asyncRequest(dagNode, prompt);
+          break
+      }
+      if (dagNode.source.func !== undefined) {
+        await this.evalExecute(dagNode, dagNode.source.func)
+      }
+      if (callback) {
+        callback(dagNode);
       }
     }
   }
@@ -312,10 +458,10 @@ class PromptFlowX {
 
       let isRefDone = true;
 
-      this.traversalRefNodes(dagNode, (inputKey, taskNode)=>{
+      this.traversalRefNodes(dagNode, (inputKey, taskNode) => {
         const inputValue = taskNode[inputKey];
         const valueRef = this.extractReference(inputValue);
-        if (valueRef){
+        if (valueRef) {
           const [prevNodeName, prevNodeValue] = valueRef.split(".");
           if (prevNodeName !== nodeName && (!nodeCheck[prevNodeName] && !this.isContextVariable(prevNodeName, prevNodeValue))) {
             isRefDone = false;
@@ -348,7 +494,7 @@ class PromptFlowX {
         const neighborNodeId = edge.target;
         if (!visited.has(neighborNodeId)) {
           const findPath = await this.findPath(graph, neighborNodeId, endNodeId, visited, path, paths);
-          if (findPath){
+          if (findPath) {
             return findPath
           }
         }
@@ -360,18 +506,37 @@ class PromptFlowX {
     return undefined
   }
 
-  async processPath(path: string[]) {
+  async processPath(flowPath: PromptFlowNode[], path: string[]) {
     for (const nodeName of path) {
       const dagNode = this.findNodeByName(nodeName);
       if (dagNode !== undefined) {
-        // empty llm output for check nodes.
-        dagNode.output = ""
+        this.generatePromptQuery(dagNode, false)
+
+        // mock llm output for check next node.
+        switch (dagNode.type){
+          case "prompt":
+          case "scheme":
+            dagNode.output = ""
+            break
+          case "doc":
+            let splitterDocs = [] as Document[]
+            dagNode.output = splitterDocs
+            break
+          case "retrieve":
+            dagNode.output = [] as Document[]
+            break
+          default:
+            dagNode.output = ""
+        }
+
         if (dagNode.source.func !== undefined) {
           await this.evalExecute(dagNode, dagNode.source.func)
         }
-        this.flowPath.push(dagNode)
+
+        flowPath.push(dagNode)
       }
     }
+    return flowPath
   }
 
   findNodeByName(nodeName: string) {
@@ -385,7 +550,7 @@ class PromptFlowX {
     }
     if (nodeName === PROMPT_START_NODE_NAME) {
       if (value === "input_text") {
-        return this.prompt;
+        return this.prompt ? this.prompt : "";
       }
     }
     if (this.isContextVariable(nodeName, value)) {
@@ -397,35 +562,42 @@ class PromptFlowX {
     throw new Error(`${nodeName}.${value} Node Not Found`);
   }
 
-  generatePromptQuery(dagNode: PromptFlowNode): string {
-    let requestPrompt = "";
-
+  generatePromptQuery(dagNode: PromptFlowNode, updateNode: boolean): string {
     if (dagNode.source === undefined) {
       throw new Error(`[${dagNode.name}] source is undefined`);
     }
 
-    requestPrompt += this.getPromptCode(dagNode);
+    let requestPrompt = this.getPromptCode(dagNode);
     try {
-      this.traversalRefNodes(dagNode, (inputKey, taskNode)=> {
+      this.traversalRefNodes(dagNode, (inputKey, taskNode, typeName) => {
         let inputValue = taskNode[inputKey];
+        if(updateNode && this.referenceCache[typeName + ":" + inputKey]){
+          inputValue = this.referenceCache[typeName + ":" + inputKey]
+        }
         const valueRef = this.extractReference(inputValue);
         if (valueRef !== undefined) {
           const [prevNodeName, prevNodeValue] = valueRef.split(".");
-          inputValue = this.getNodeValue(prevNodeName, prevNodeValue);
-          if (taskNode && taskNode[inputKey]) {
-            taskNode[inputKey] = inputValue
+          if (!updateNode){
+            this.referenceCache[typeName + ":" + inputKey] = inputValue
           }
-        }else{
-          if (inputKey == "query" || inputKey == "url"){
+          taskNode[inputKey] = this.getNodeValue(prevNodeName, prevNodeValue)
+        } else {
+          if (inputKey == "query" || inputKey == "url") {
             const inputsNode = dagNode.inputs;
             if (inputsNode !== undefined) {
               Object.keys(inputsNode).forEach((inputsNodeKey) => {
-                taskNode[inputKey] = taskNode[inputKey].replaceAll(`{${inputsNodeKey}}`, inputsNode[inputsNodeKey]);
+                // string replace
+                if (updateNode){
+                  taskNode[inputKey] = taskNode[inputKey].replaceAll(`{${inputsNodeKey}}`, inputsNode[inputsNodeKey]);
+                }
               });
             }
           }
         }
-        requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, inputValue);
+        if (updateNode){
+          // string replace
+          requestPrompt = requestPrompt.replaceAll(`{${inputKey}}`, taskNode[inputKey]);
+        }
       })
     } catch (e) {
       throw new Error(`[${dagNode.name}] ${e}`);
@@ -450,7 +622,7 @@ class PromptFlowX {
     });
 
     const outputRef = this.extractReference(dagOutputsNode.reference);
-    if (!outputRef || !dagOutputsNode.reference){
+    if (!outputRef || !dagOutputsNode.reference) {
       throw new Error(`outputs.reference not defined`);
     }
     const [outputRefNodeName] = outputRef.split(".");
@@ -464,8 +636,8 @@ class PromptFlowX {
         promptFlowEdges.push(promptFlowEdge);
       }
     }
-    promptNodes.forEach((node)=>{
-      if (node.name != undefined){
+    promptNodes.forEach((node) => {
+      if (node.name != undefined) {
         const promptFlowEdge = {
           source: PROMPT_START_NODE_NAME,
           target: node.name
@@ -483,20 +655,33 @@ class PromptFlowX {
     const taskNode = dagNode.inputs;
     if (taskNode !== undefined) {
       Object.keys(taskNode).forEach((inputKey) => {
-        callback(inputKey, taskNode)
+        callback(inputKey, taskNode, dagNode.name + ":inputs")
       });
     }
     SOURCE_REFERENCE_NODE_LIST.forEach((referenceNodeName) => {
-      const taskNode = dagNode.source[referenceNodeName];
-      if (taskNode !== undefined) {
-        Object.keys(taskNode).forEach((inputKey) => {
-          callback(inputKey, taskNode)
-        });
+      let referenceNode = {} as (PromptChildEmbeddingNode | PromptChildDocNode)
+      switch (referenceNodeName) {
+        case "embedding":
+          const promptFlowRetrieveNode = dagNode as PromptFlowRetrieveNode
+          referenceNode = promptFlowRetrieveNode.source.embedding;
+          break
+        case "doc":
+          const docNode = dagNode as PromptFlowDocNode
+          referenceNode = docNode.source.doc;
+          break
+      }
+      if (referenceNode) {
+        const referenceNodeKeys = Object.keys(referenceNode)
+        if (referenceNodeKeys.length > 0) {
+          referenceNodeKeys.forEach((inputKey) => {
+            callback(inputKey, referenceNode, dagNode.name + ":" + referenceNodeName)
+          });
+        }
       }
     })
   }
 
-    getFunctionCode(funcPath: string) {
+  getFunctionCode(funcPath: string) {
     let promptLibContent = this.funcLib[funcPath];
     if (promptLibContent !== undefined) {
       return promptLibContent;
@@ -537,6 +722,7 @@ class PromptFlowX {
 
     return ""
   }
+
 
 }
 // Export the module's functionality
