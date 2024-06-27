@@ -372,7 +372,7 @@ class PromptFlowX {
         default:
           dagNode.type = "prompt"
           const promptNode = dagNode as PromptFlowPromptNode
-          promptNode.output = await asyncRequest(dagNode, prompt);
+          promptNode.output = await asyncRequest(dagNode, this.template(prompt, promptNode));
           break
       }
       if (dagNode.source.func !== undefined) {
@@ -723,6 +723,17 @@ class PromptFlowX {
     return ""
   }
 
+  private template(prompt: string, dagNode: PromptFlowNode) {
+    const templateReg = /\{\{[^\}]+\}\}/g;
+    const containsTemplateSyntax = templateReg.test(prompt);
+    if (containsTemplateSyntax) {
+      //const template = handlebars.compile(prompt);
+      // prompt = template(dagNode.inputs);
+      const templateExecute = require('promptflow-template');
+      prompt = templateExecute.render(prompt, dagNode.inputs);
+    }
+    return prompt;
+  }
 
 }
 // Export the module's functionality
