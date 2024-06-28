@@ -138,12 +138,13 @@ export interface PromptFlowRetrieveNode {
 
 // Interface representing the source of a prompt flow node
 export interface PromptChildSplitterNode {
-  name: "CharacterTextSplitter" | "RecursiveCharacterTextSplitter" | "TokenTextSplitter"
+  name: "character" | "recursive" | "token" | "html" | "markdown" | "code"
   separator?: string;
   chunkSize?: number;
   chunkOverlap?: number;
+  separators?: string[];
   encodingName?: "gpt2" | "r50k_base" | "p50k_base" | "p50k_edit" | "cl100k_base" | "o200k_base";
-
+  language?: "cpp" | "go" | "java" | "js" | "php" | "proto" | "python" | "rst" | "ruby" | "rust" | "scala" | "swift" | "markdown" | "latex" | "html" | "sol";
   [key: string]: any; // Additional properties can be added dynamically
 }
 

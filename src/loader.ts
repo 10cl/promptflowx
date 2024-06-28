@@ -47,32 +47,59 @@ export function extractFileExtension(url: string) {
 
 export async function loadTextBySplitter(docs: Document[] | string, doc: PromptChildDocNode): Promise<Document[]> {
   let splitter = undefined
+
   if (doc.splitter && doc.splitter.name){
+
+    const textSplitterParam = {
+      chunkSize: doc.splitter.chunkSize,
+      chunkOverlap: doc.splitter.chunkOverlap,
+    }
+
     switch (doc.splitter.name) {
-      case "CharacterTextSplitter":
-        splitter = new CharacterTextSplitter({
+      case "character":
+        splitter = new CharacterTextSplitter( {
+          ...textSplitterParam,
           separator: doc.splitter.separator,
-          chunkSize: doc.splitter.chunkSize,
-          chunkOverlap: doc.splitter.chunkOverlap,
         });
         break
-      case "RecursiveCharacterTextSplitter":
+      case "recursive":
         splitter = new RecursiveCharacterTextSplitter({
-          chunkSize: doc.splitter.chunkSize,
-          chunkOverlap: doc.splitter.chunkOverlap,
+          ...textSplitterParam,
+          separators: doc.splitter.separators
         });
         break
-      case "TokenTextSplitter":
+      case "token":
         splitter = new TokenTextSplitter({
+          ...textSplitterParam,
           encodingName: doc.splitter.encodingName,
-          chunkSize: doc.splitter.chunkSize,
-          chunkOverlap: doc.splitter.chunkOverlap
         });
+        break
+      case "markdown":
+        splitter = RecursiveCharacterTextSplitter.fromLanguage("markdown", {
+          ...textSplitterParam,
+          separators: doc.splitter.separators
+        });
+        break
+      case "html":
+        splitter = RecursiveCharacterTextSplitter.fromLanguage("html", {
+          ...textSplitterParam,
+          separators: doc.splitter.separators
+        });
+        break
+      case "code":
+        if (doc.splitter.language){
+          splitter = RecursiveCharacterTextSplitter.fromLanguage(doc.splitter.language, {
+            ...textSplitterParam,
+            separators: doc.splitter.separators
+          });
+        }else{
+          throw Error("splitter `language` not defined.");
+        }
         break
     }
   }
   if (splitter == undefined){
-    splitter = RecursiveCharacterTextSplitter.fromLanguage("html", {
+    splitter = RecursiveCharacterTextSplitter.fromLanguage("markdown", {
       chunkSize: 1024,
       chunkOverlap: 20,
     });
