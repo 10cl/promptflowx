@@ -97,11 +97,11 @@ export interface PromptFlowSchemeNode {
   type: "scheme";
   role?: Role | string;
   source: {
-    scheme: PromptChildSchemePathNode | PromptChildSchemeCodeNode;
+    scheme: PromptChildSchemePathNode;
     code: string;
     func?: string;
   } | {
-    scheme: PromptChildSchemePathNode | PromptChildSchemeCodeNode;
+    scheme: PromptChildSchemePathNode;
     path: string;
     func?: string;
   }
@@ -175,13 +175,7 @@ export interface PromptChildDocReferenceNode {
 
 // Interface representing the source of a prompt flow node
 export interface PromptChildSchemePathNode {
-  scheme: string;
-  scheme_type: string;
-}
-
-// Interface representing the source of a prompt flow node
-export interface PromptChildSchemeCodeNode {
-  scheme: string;
+  path: string;
   scheme_type: string;
 }
 
@@ -314,7 +308,7 @@ class PromptFlowX {
         case "scheme":
           const schemeNode = dagNode as PromptFlowSchemeNode;
           const schemeType = schemeNode.source.scheme.scheme_type
-          const schemePath = schemeNode.source.scheme.scheme
+          const schemePath = schemeNode.source.scheme.path
           const schema = this.funcLib[schemePath]
 
           prompt = prompt.replace("{scheme}", schema);
@@ -687,10 +681,12 @@ class PromptFlowX {
     if (promptLibContent !== undefined) {
       return promptLibContent;
     } else if (funcPath.endsWith(".js") || funcPath.endsWith(".txt")) {
-      return fs.readFileSync(process.cwd() + "/" + funcPath, 'utf8');
-    } else {
-      throw new Error(`${funcPath} Not Found`);
+      const promptPath = process.cwd() + "/" + funcPath
+      if (fs.existsSync(promptPath)) {
+        return fs.readFileSync(process.cwd() + "/" + funcPath, 'utf8');
+      }
     }
+    throw new Error(`${funcPath} Not Found`);
   }
 
   getPromptCode(promptNode: PromptFlowNode) {
@@ -743,7 +739,7 @@ export const promptflowx: PromptFlowRequester = {
     const libPath = libFolder + "/" + "flow.dag.json"
     let promptLibs = {} as PromptLib
     if (fs.existsSync(libPath)) {
-      promptLibs = JSON.parse(fs.readFileSync(libFolder + "/" + "flow.dag.json", 'utf8'));
+      promptLibs = JSON.parse(fs.readFileSync(libPath, 'utf8'));
     }
     const dag = jsyaml.load(yamlContent) as PromptFlowDag;
     const nodes = (dag.nodes || []) as PromptFlowNode[];
@@ -756,15 +752,24 @@ export const promptflowx: PromptFlowRequester = {
           }
         }
         if (node.source.func && node.source.func.endsWith(".js")) {
-          promptLibs[node.source.func] = fs.readFileSync(libFolder + "/" + node.source.func, 'utf8');
+          const promptPath = libFolder + "/" + node.source.func
+          if (fs.existsSync(promptPath)) {
+            promptLibs[node.source.func] = fs.readFileSync(libFolder + "/" + node.source.func, 'utf8');
+          }
         }
 
         if ("scheme" in node.source) {
-          promptLibs[node.source.scheme.scheme] = fs.readFileSync(libFolder + "/" + node.source.scheme.scheme, 'utf8');
+          const promptPath = libFolder + "/" + node.source.scheme.path
+          if (fs.existsSync(promptPath)) {
+            promptLibs[node.source.scheme.path] = fs.readFileSync(promptPath, 'utf8');
+          }
         }
 
         if ("doc" in node.source && "path" in node.source.doc) {
-          promptLibs[node.source.doc.path] = fs.readFileSync(libFolder + "/" + node.source.doc.path, 'utf8');
+          const promptPath = libFolder + "/" + node.source.doc.path
+          if (fs.existsSync(promptPath)) {
+            promptLibs[node.source.doc.path] = fs.readFileSync(libFolder + "/" + node.source.doc.path, 'utf8');
+          }
         }
       }
     });
