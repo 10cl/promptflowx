@@ -152,6 +152,7 @@ export interface PromptChildSplitterNode {
 export interface PromptChildEmbeddingNode {
   doc: Document[];
   query: string;
+  [key: string]: any;
 }
 
 // Interface representing the source of a prompt flow node
@@ -211,6 +212,7 @@ export interface PromptFlowDag {
   roles?: Role[]; // Optional roles associated with the prompt flow
   tips?: string[]; // Optional tips or additional information
   desc?: string; // Description of the prompt flow
+  [key: string]: any;
 }
 
 // Interface representing the prompt library, mapping function paths to their corresponding code
