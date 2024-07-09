@@ -1,0 +1,32 @@
+desc: "Chat with any PDF"
+
+outputs:
+  reference: ${chat_with_pdf}
+
+nodes:
+  - name: get_document
+    type: "doc"
+    source:
+      doc:
+        path: document.txt
+
+  - name: rewrite_question
+    source:
+      path: rewrite_question_prompt.md
+    inputs:
+      history: ${dev_info.history}
+      question: ${inputs.input_text}
+
+  - name: embedding_document
+    type: "retrieve"
+    source:
+      embedding:
+        doc: ${get_document.output}
+        query: ${rewrite_question.output}
+
+  - name: chat_with_pdf
+    source:
+      path: qna_prompt.md
+    inputs:
+      docs: ${embedding_document.output}
+      question: ${rewrite_question.output}
