@@ -123,7 +123,7 @@ For LLM request, establish a connection by your define, each node will request t
 ```ts
 export async function nodeRequest(node: PromptFlowNode, prompt: string): Promise<string> {
   try {
-    console.log('node prompt request: ' + prompt);
+    console.log("\n>>>>>>>>>>> Prompt START >>>>>>>>>>>>>>>>\n" + prompt + "\n>>>>>>>>>>> Prompt END >>>>>>>>>>>>>>>>\n");
     const response = await axios.get('https://api.example.com/data');
     return response.data.data;
   } catch (error) {
@@ -139,12 +139,16 @@ export async function nodeRequest(node: PromptFlowNode, prompt: string): Promise
 In the `my_chatbot` folder, there's a `flow.dag.yaml` file that outlines the flow, including inputs/outputs, nodes,  connection, and the LLM model, etc
 Interact with your chatbot by execute the code:
 ```ts
-export async function nodeCallback(node: PromptFlowNode) {
-  console.log('=> node handled:', node);
-}
-const yaml = fs.readFileSync(__dirname + '/my_chatbot/flow.dag.yaml', 'utf8');
-const promptLibs = await promptflowx.buildLib(yaml, __dirname + '/my_chatbot/');
-await promptflowx.execute(yaml, promptLibs, nodeRequest, nodeCallback, 'Hello.');
+const yaml = fs.readFileSync(path.join(__dirname, "flow.dag.yaml"), "utf8");
+const context = {
+  /* for defined your own api*/
+  promptflowx: {
+    libs: await promptflowx.buildLib(yaml, __dirname),
+    request: nodeRequest,
+  }
+} as Context
+
+await promptflowx.execute(context, yaml, 'Hello.');
 ```
 
 Next Step! Continue with the **Tutorial**  👇 section to delve deeper into prompt flow.
