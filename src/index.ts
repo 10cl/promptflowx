@@ -738,13 +738,23 @@ class PromptFlowX {
 // Export the module's functionality
 export const promptflowx: PromptFlowRequester = {
   async buildLib(yamlContent: string, libFolder: string): Promise<PromptLib> {
-    const libPath = libFolder + "/" + "flow.dag.json"
+    const libPath = libFolder + "/" + "flow.lib.json"
     let promptLibs = {} as PromptLib
     if (fs.existsSync(libPath)) {
       promptLibs = JSON.parse(fs.readFileSync(libPath, 'utf8'));
     }
     const dag = jsyaml.load(yamlContent) as PromptFlowDag;
     const nodes = (dag.nodes || []) as PromptFlowNode[];
+    const roles = dag.roles || [];
+    roles.forEach((role) => {
+      if (role.source.path){
+        const promptPath = libFolder + "/" + role.source.path
+        if (fs.existsSync(promptPath)) {
+          promptLibs[role.source.path] = fs.readFileSync(promptPath, 'utf8');
+        }
+      }
+    })
+
     nodes.forEach((node) => {
       if (node.source) {
         if ("path" in node.source) {
