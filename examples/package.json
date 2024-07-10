@@ -12,6 +12,7 @@
     "build": "tsc",
     "start": "tsx src/index.ts",
     "chatpdf": "tsx src/index.ts .\\src\\chatpdf\\main.ts",
+    "chatdev": "tsx src/index.ts .\\src\\chatdev\\main.ts",
     "start:dist": "yarn build && node dist/index.js",
     "postbuild": "copyfiles -u 1 ./src/**/* dist"
   },
