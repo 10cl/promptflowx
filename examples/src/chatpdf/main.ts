@@ -36,7 +36,7 @@ export async function nodeRequest(node: PromptFlowNode, prompt: string): Promise
       return response.data.data + " (" + node.name + ")";
     }
   } catch (error) {
-    // Handle errors that occur during fetching6
+    // Handle errors that occur during fetching
     console.error('Error fetching data from LLM API:', error);
     throw error; // You can choose to throw the error or return a default value
   }

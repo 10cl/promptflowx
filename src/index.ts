@@ -682,7 +682,7 @@ class PromptFlowX {
     let promptLibContent = this.funcLib[funcPath];
     if (promptLibContent !== undefined) {
       return promptLibContent;
-    } else if (funcPath.endsWith(".js") || funcPath.endsWith(".txt")) {
+    } else if (funcPath.endsWith(".js") || funcPath.endsWith(".txt") || funcPath.endsWith(".md")) {
       const promptPath = process.cwd() + "/" + funcPath
       if (fs.existsSync(promptPath)) {
         return fs.readFileSync(process.cwd() + "/" + funcPath, 'utf8');

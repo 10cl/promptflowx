@@ -8,42 +8,42 @@ outputs:
 roles:
   - name: "Chief Product Officer"
     source:
-      path: role_chief_product_officer.txt
+      path: Role_Chief_Product_Officer.md
   - name: "Counselor"
     source:
-      path: role_counselor.txt
+      path: Role_Counselor.md
   - name: "Chief Technology Officer"
     source:
-      path: role_chief_technology_officer.txt
+      path: Role_Chief_Technology_Officer.md
   - name: "Chief Human Resource Officer"
     source:
-      path: role_chief_human_resource_officer.txt
+      path: Role_Chief_Human_Resource_Officer.md
   - name: "Programmer"
     source:
-      path: role_programmer.txt
+      path: Role_Programmer.md
   - name: "Code Reviewer"
     source:
-      path: role_code_reviewer.txt
+      path: Role_Code_Reviewer.md
   - name: "Software Test Engineer"
     source:
-      path: role_software_test_engineer.txt
+      path: Role_Software_Test_Engineer.md
   - name: "Chief Creative Officer"
     source:
-      path: role_chief_creative_officer.txt
+      path: Role_Chief_Creative_Officer.md
 
 nodes:
   - name: DemandUnderstand
     source:
-      path: planning_prompt_enhance.txt
-      func: func_prompt_enhance.js
+      path: Planning_Prompt_Enhance.md
+      func: Func_Prompt_Enhance.js
     inputs:
       task: ${inputs.input_text}
 
   - name: Coding
     role: "Programmer"
     source:
-      path: planning_coding.txt
-      func: func_coding.js
+      path: Planning_Coding.md
+      func: Func_Coding.js
     inputs:
       assistant_role: "Programmer"
       gui: ${DemandUnderstand.gui}
@@ -55,8 +55,8 @@ nodes:
   - name: CodeComplete
     role: "Programmer"
     source:
-      path: planning_codecomplete.txt
-      func: func_coding.js
+      path: Planning_CodeComplete.md
+      func: Func_Coding.js
     inputs:
       assistant_role: "Programmer"
       unimplemented_file: ${Coding.unimplemented_file}
@@ -68,7 +68,7 @@ nodes:
   - name: CodeReviewComment
     role: "Code Reviewer"
     source:
-      path: planning_codereviewcomment.txt
+      path: Planning_CodeReviewComment.md
     inputs:
       assistant_role: "Code Reviewer"
       codes: ${CodeComplete.output}
@@ -80,8 +80,8 @@ nodes:
   - name: CodeReviewModification
     role: "Code Reviewer"
     source:
-      path: planning_codereviewmodification.txt
-      func: func_coding.js
+      path: Planning_CodeReviewModification.md
+      func: Func_Coding.js
     inputs:
       assistant_role: "Code Reviewer"
       comments: ${CodeReviewComment.output}
@@ -94,7 +94,7 @@ nodes:
   - name: TestErrorSummary
     role: "Programmer"
     source:
-      path: planning_testerrorsummary.txt
+      path: Planning_TestErrorSummary.md
     inputs:
       assistant_role: "Programmer"
       test_reports: "js & css should inline in index.html"
@@ -104,8 +104,8 @@ nodes:
   - name: TestModification
     role: "Programmer"
     source:
-      path: planning_testmodification.txt
-      func: func_coding.js
+      path: Planning_TestModification.md
+      func: Func_Coding.js
     inputs:
       assistant_role: "Programmer"
       error_summary: ${TestErrorSummary.output}
