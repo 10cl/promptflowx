@@ -397,32 +397,62 @@ class PromptFlowX {
 
   async traversePath(edges: PromptFlowEdge[]) {
     const paths: string[][] = []; // All paths
-    const flowPath = [] as PromptFlowNode[]
     const validPath = await this.findPath(edges, PROMPT_START_NODE_NAME, PROMPT_END_NODE_NAME, new Set(), [], paths);
     if (validPath) {
-      return await this.processPath(flowPath, validPath);
+      return await this.processPath(validPath);
     } else {
-      for (const edge of edges) {
-        if (edge.source == PROMPT_START_NODE_NAME) {
-          const checkPath = [PROMPT_START_NODE_NAME, edge.target]
-          if (this.checkPath(checkPath)) {
-            for (let i = 0; i < paths.length; i++) {
-              if (paths[i].indexOf(edge.target) == -1 && paths[i].indexOf(PROMPT_START_NODE_NAME) !== -1) {
-                paths[i].shift()
-                const newValidPath = [...checkPath, ...paths[i]]
-                if (this.checkPath(newValidPath)) {
-                  return await this.processPath(flowPath, newValidPath);
-                }
-              }
-            }
+      const graph: { [key: string]: string[] } = {};
+      const inDegree: { [key: string]: number } = {};
+
+      paths.forEach(path => {
+        path.forEach((node, index) => {
+          if (!graph[node]) {
+            graph[node] = [];
           }
-        }
+          if (index < path.length - 1) {
+            const nextNode = path[index + 1];
+            graph[node].push(nextNode);
+            inDegree[nextNode] = (inDegree[nextNode] || 0) + 1;
+          }
+          if (!inDegree[node]) {
+            inDegree[node] = 0;
+          }
+        });
+      });
+      const topoPath = this.topologicalSort(graph, inDegree);
+      if (this.checkPath(topoPath)) {
+        return await this.processPath(topoPath);
       }
     }
     return [] as PromptFlowNode[]
   }
 
-  checkPath(path: string[]) {
+ topologicalSort(graph: { [key: string]: string[] }, inDegree: { [key: string]: number }): string[] {
+  const queue: string[] = [];
+  const topoOrder: string[] = [];
+
+  for (const node in inDegree) {
+    if (inDegree[node] === 0) {
+      queue.push(node);
+    }
+  }
+
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    topoOrder.push(node);
+    for (const neighbor of graph[node]) {
+      inDegree[neighbor]--;
+      if (inDegree[neighbor] === 0) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return topoOrder;
+}
+
+
+checkPath(path: string[]) {
     const currentPath = [...path];
 
     const nodeCheck = {} as { [key: string]: boolean };
@@ -503,7 +533,9 @@ class PromptFlowX {
     return undefined
   }
 
-  async processPath(flowPath: PromptFlowNode[], path: string[]) {
+  async processPath(path: string[]) {
+    const flowPath = [] as PromptFlowNode[]
+
     for (const nodeName of path) {
       const dagNode = this.findNodeByName(nodeName);
       if (dagNode !== undefined) {
