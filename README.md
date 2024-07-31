@@ -30,10 +30,6 @@
 
 **Prompt flow** is a suite of development tools designed to streamline the end-to-end development cycle of LLM-based AI applications, from ideation, prototyping, testing, evaluation to production deployment and monitoring. It makes prompt engineering much easier and enables you to build LLM apps with production quality.
 
-The letter **X** denotes its support for the **Context**.  Each node will as the `Global scope` within the flow operates in JavaScript.  
->JavaScript objects exhibit remarkable flexibility;  they can encompass various entities such as functions, arrays, dates, regular expressions, and more.  This inherent flexibility empowers JavaScript objects to aptly represent data structures and logic, enabling dynamic creation and modification of their structures as necessitated.
-
- 
 With prompt flow, you will be able to:
 
 - **Create and iteratively develop flow**
@@ -100,7 +96,7 @@ npm install promptflowx
 ## Quick Start ⚡
 **Create a chatbot with prompt flow**
 
-creates folder named `my_chatbot` and initiate a prompt flow(`flow.dag.yaml`) from a chat template like: 
+creates folder named `my_chatbot` and initiate a prompt flow(`flow.dag.yaml`) from a chat template like:
 ```yaml
 desc: "ChatBot Template"
 
@@ -166,6 +162,287 @@ We also offer a Browser extension (a flow designer) for an interactive flow deve
 ![quick_start_chatdev.png](https://github.com/10cl/promptflowx/blob/main/screenshots/quick_start_chatdev.png)
 
 You can install it from the <a href="https://chrome.google.com/webstore/detail/chatdev-visualize-your-ai/dopllopmmfnghbahgbdejnkebfcmomej?utm_source=github">chrome store</a>.
+
+
+## Context
+Each node will as the `Global scope` within the flow operates in JavaScript.
+for example, in ChatDev, we set `window` as the Context scope.
+```js
+await promptflowx.execute(window/*Context*/, yaml, 'Hello.'/*prompt*/);
+```
+
+## Templates
+![image](https://github.com/user-attachments/assets/760bb4f0-36a5-42a2-97c9-713a7ccce1ff)
+
+promptflowx template is a string that contains any number of template tags. Tags are indicated by the double mustaches that surround them. `{{person}}` is a tag, as is `{{person}}`. In both examples we refer to `person` as the tag's key. There are several types of tags available in promptflowx, described below.
+
+### Variables
+
+The most basic tag type is a simple variable. A `{{name}}` tag renders the value of the `name` key in the current context. If there is no such key, nothing is rendered.
+
+All variables are HTML-escaped by default. If you want to render unescaped HTML, use the triple mustache: `{{{name}}}`. You can also use `&` to unescape a variable.
+
+View:
+
+```json
+{
+  "name": "Chris",
+  "company": "<b>GitHub</b>"
+}
+```
+
+Template:
+
+```
+* {{name}}
+* {{age}}
+* {{company}}
+* {{{company}}}
+* {{&company}}
+{{=<% %>=}}
+* {{company}}
+<%={{ }}=%>
+```
+
+Output:
+
+```html
+* Chris
+*
+* &lt;b&gt;GitHub&lt;/b&gt;
+* <b>GitHub</b>
+* <b>GitHub</b>
+* {{company}}
+```
+
+JavaScript's dot notation may be used to access keys that are properties of objects in a view.
+
+View:
+
+```json
+{
+  "name": {
+    "first": "Michael",
+    "last": "Jackson"
+  },
+  "age": "RIP"
+}
+```
+
+Template:
+
+```html
+* {{name.first}} {{name.last}}
+* {{age}}
+```
+
+Output:
+
+```html
+* Michael Jackson
+* RIP
+```
+
+### Sections
+
+Sections render blocks of text zero or more times, depending on the value of the key in the current context.
+
+A section begins with a pound and ends with a slash. That is, `{{person}}` begins a `person` section, while `{{/person}}` ends it. The text between the two tags is referred to as that section's "block".
+
+The behavior of the section is determined by the value of the key.
+
+#### False Values or Empty Lists
+
+If the `person` key does not exist, or exists and has a value of `null`, `undefined`, `false`, `0`, or `NaN`, or is an empty string or an empty list, the block will not be rendered.
+
+View:
+
+```json
+{
+  "person": false
+}
+```
+
+Template:
+
+```html
+Shown.
+{{person}}
+Never shown!
+{{/person}}
+```
+
+Output:
+
+```html
+Shown.
+```
+
+#### Non-Empty Lists
+
+If the `person` key exists and is not `null`, `undefined`, or `false`, and is not an empty list the block will be rendered one or more times.
+
+When the value is a list, the block is rendered once for each item in the list. The context of the block is set to the current item in the list for each iteration. In this way we can loop over collections.
+
+View:
+
+```json
+{
+  "stooges": [
+    { "name": "Moe" },
+    { "name": "Larry" },
+    { "name": "Curly" }
+  ]
+}
+```
+
+Template:
+
+```html
+{{stooges}}
+<b>{{name}}</b>
+{{/stooges}}
+```
+
+Output:
+
+```html
+<b>Moe</b>
+<b>Larry</b>
+<b>Curly</b>
+```
+
+When looping over an array of strings, a `.` can be used to refer to the current item in the list.
+
+View:
+
+```json
+{
+  "musketeers": ["Athos", "Aramis", "Porthos", "D'Artagnan"]
+}
+```
+
+Template:
+
+```html
+{{musketeers}}
+* {{.}}
+{{/musketeers}}
+```
+
+Output:
+
+```html
+* Athos
+* Aramis
+* Porthos
+* D'Artagnan
+```
+
+If the value of a section variable is a function, it will be called in the context of the current item in the list on each iteration.
+
+View:
+
+```js
+{
+  "beatles": [
+    { "firstName": "John", "lastName": "Lennon" },
+    { "firstName": "Paul", "lastName": "McCartney" },
+    { "firstName": "George", "lastName": "Harrison" },
+    { "firstName": "Ringo", "lastName": "Starr" }
+  ],
+  "name": function () {
+    return this.firstName + " " + this.lastName;
+  }
+}
+```
+
+Template:
+
+```html
+{{beatles}}
+* {{name}}
+{{/beatles}}
+```
+
+Output:
+
+```html
+* John Lennon
+* Paul McCartney
+* George Harrison
+* Ringo Starr
+```
+
+#### Functions
+
+If the value of a section key is a function, it is called with the section's literal block of text, un-rendered, as its first argument. The second argument is a special rendering function that uses the current view as its view argument. It is called in the context of the current view object.
+
+View:
+
+```js
+{
+  "name": "Tater",
+  "bold": function () {
+    return function (text, render) {
+      return "<b>" + render(text) + "</b>";
+    }
+  }
+}
+```
+
+Template:
+
+```html
+{{bold}}Hi {{name}}.{{/bold}}
+```
+
+Output:
+
+```html
+<b>Hi Tater.</b>
+```
+
+### Inverted Sections
+
+An inverted section opens with `{{^section}}` instead of `{{section}}`. The block of an inverted section is rendered only if the value of that section's tag is `null`, `undefined`, `false`, *falsy* or an empty list.
+
+View:
+
+```json
+{
+  "repos": []
+}
+```
+
+Template:
+
+```html
+{{repos}}<b>{{name}}</b>{{/repos}}
+{{^repos}}No repos :({{/repos}}
+```
+
+Output:
+
+```html
+No repos :(
+```
+
+### Comments
+
+Comments begin with a bang and are ignored. The following template:
+
+```html
+<h1>Today{{! ignore me }}.</h1>
+```
+
+Will render as follows:
+
+```html
+<h1>Today.</h1>
+```
+
+Comments may contain newlines.
 
 ## Contributing
 
